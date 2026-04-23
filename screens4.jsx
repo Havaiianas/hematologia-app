@@ -882,39 +882,45 @@ function CommunityScreenV2() {
     setPosts(prev => prev.filter(p => p.id !== postId));
   };
 
-  // Publica post no backend E atualiza estado local
+  // Publica post no backend E recarrega lista
   const publicar = async (novoP) => {
-    try {
-      const user = (() => { try { return JSON.parse(localStorage.getItem('hema_user') || '{}'); } catch { return {}; } })();
-      const token = localStorage.getItem('hema_token');
-      const r = await fetch(`${window.HemaAPI.base}/community/posts`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({
-          caption:    novoP.caption,
-          tags:       novoP.tags || [],
-          ia_resumo:  novoP.ia || null,
-          imagem_url: novoP.imagem_url || null,
-        }),
-      });
-      if (r.ok) {
-        const salvo = await r.json();
-        const postNormalizado = {
-          ...novoP,
-          id: salvo.id || novoP.id,
-        };
-        setPosts(prev => [postNormalizado, ...prev]);
-      } else {
-        // Se falhar na API, salva local mesmo assim
-        setPosts(prev => [novoP, ...prev]);
-      }
-    } catch {
-      setPosts(prev => [novoP, ...prev]);
-    }
+    setPosts(prev => [novoP, ...prev]);
     setNovoPost(false);
+    // Recarrega do banco após 1s para garantir consistência
+    setTimeout(async () => {
+      try {
+        const user = (() => { try { return JSON.parse(localStorage.getItem('hema_user') || '{}'); } catch { return {}; } })();
+        const uid = user?.id || user?.email || '';
+        const r = await fetch(`${window.HemaAPI.base}/community/posts?limit=30&usuario_id=${encodeURIComponent(uid)}`);
+        if (r.ok) {
+          const d = await r.json();
+          const normalizados = (d.posts || d).map((p, i) => ({
+            id:         p.id,
+            seed:       Math.floor(Math.random() * 99) + 1,
+            author:     p.autor_nome || 'Usuário',
+            spec:       p.autor_crbio || 'Biomédico',
+            initials:   (p.autor_nome || 'U').split(' ').map(w => w[0]).slice(0,2).join(''),
+            caption:    p.caption,
+            tags:       p.tags || [],
+            ia:         p.ia_resumo || null,
+            imagem_url: p.imagem_url || null,
+            imageURL:   p.imagem_url || null,
+            reactions: {
+              scope: { n: p.total_reacoes || 0, ativo: p.minha_reacao === 'scope' },
+              alert: { n: 0, ativo: p.minha_reacao === 'alert' },
+              agree: { n: 0, ativo: p.minha_reacao === 'agree' },
+            },
+            comments:    p.total_comentarios || 0,
+            trending:    p.trending || false,
+            comentarios: (p.comentarios || []).map(cm => ({
+              id: cm.id, author: cm.author, initials: cm.initials,
+              spec: cm.spec, texto: cm.texto, time: cm.time, respostas: [],
+            })),
+          }));
+          setPosts(normalizados);
+        }
+      } catch {}
+    }, 1000);
   };
 
   const postsFiltrados = posts.filter(p => {
