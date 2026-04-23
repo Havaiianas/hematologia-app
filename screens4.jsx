@@ -147,17 +147,35 @@ function Comentario({ c, onResponder }) {
 function PostCard({ post, onUpdate, onAbrir }) {
   const [comentariosAbertos, setComentariosAbertos] = React.useState(false);
   const [novoComentario, setNovoComentario]         = React.useState('');
-  const [respondendoA, setRespondendoA]             = React.useState(null); // comentário que está respondendo
+  const [respondendoA, setRespondendoA]             = React.useState(null);
   const inputRef = React.useRef();
 
-  const toggleReaction = (tipo) => {
-    const r = { ...post.reactions };
-    const era = r[tipo].ativo;
-    r[tipo] = { n: era ? r[tipo].n - 1 : r[tipo].n + 1, ativo: !era };
-    onUpdate({ ...post, reactions: r });
+  // Helper para pegar token do localStorage
+  const getToken = () => localStorage.getItem('hema_token') || null;
+  const authHeaders = () => {
+    const t = getToken();
+    return t ? { 'Authorization': `Bearer ${t}`, 'Content-Type': 'application/json' }
+             : { 'Content-Type': 'application/json' };
   };
 
-  const enviarComentario = () => {
+  const toggleReaction = async (tipo) => {
+    // Atualiza UI imediatamente (otimista)
+    const r = { ...post.reactions };
+    const era = r[tipo]?.ativo;
+    r[tipo] = { n: (r[tipo]?.n || 0) + (era ? -1 : 1), ativo: !era };
+    onUpdate({ ...post, reactions: r });
+
+    // Salva no backend
+    try {
+      await fetch(`${window.HemaAPI.base}/community/posts/${post.id}/reacao`, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({ tipo }),
+      });
+    } catch {}
+  };
+
+  const enviarComentario = async () => {
     const txt = novoComentario.trim();
     if (!txt) return;
     const agora = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
@@ -174,19 +192,20 @@ function PostCard({ post, onUpdate, onAbrir }) {
       onUpdate({ ...post, comentarios: novosComentarios });
       setRespondendoA(null);
     } else {
+      // Atualiza UI imediatamente
       const novoC = {
         id: Date.now(), author: 'Você', spec: 'Usuário', initials: 'VC',
         texto: txt, time: agora, respostas: [],
       };
       onUpdate({ ...post, comentarios: [...post.comentarios, novoC] });
 
-      // Notifica o autor do post via backend (sem bloquear a UI)
+      // Salva no backend com token
       try {
-        fetch(`${window.HemaAPI.base}/community/posts/${post.id}/comentarios?usuario_id=local`, {
+        await fetch(`${window.HemaAPI.base}/community/posts/${post.id}/comentarios`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: authHeaders(),
           body: JSON.stringify({ texto: txt }),
-        }).catch(() => {});
+        });
       } catch {}
     }
     setNovoComentario('');
