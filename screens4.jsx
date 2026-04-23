@@ -158,9 +158,14 @@ function PostCard({ post, onUpdate, onAbrir, onDelete }) {
              : { 'Content-Type': 'application/json' };
   };
 
-  // Verifica se o post é do usuário logado
-  const getUserEmail = () => { try { return JSON.parse(localStorage.getItem('hema_user') || '{}').email || ''; } catch { return ''; } };
-  const isOwner = post.author === 'Você' || post.usuario_id === getUserEmail();
+  // Detecta dono do post
+  const currentUser = (() => { try { return JSON.parse(localStorage.getItem('hema_user') || '{}'); } catch { return {}; } })();
+  const isOwner = (
+    post.author    === 'Você' ||
+    post.author    === currentUser.nome  ||
+    post.author    === currentUser.name  ||
+    post.spec?.includes(currentUser.crbio)
+  );
 
   const excluirPost = async () => {
     if (!confirm('Excluir este post?')) return;
