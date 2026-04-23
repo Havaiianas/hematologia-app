@@ -513,13 +513,6 @@ function LoginScreen({ onLogin, onCriarConta, onRecuperarSenha }) {
 // ══════════════════════════════════════════════════
 // SCREEN 2 — HOME / DASHBOARD
 // ══════════════════════════════════════════════════
-const RECENT_ANALYSES = [
-  { id: 1, seed: 3,  date: '22 Abr · 14:32', status: 'alert',  label: 'Blastos detectados', count: '4 células · 6.2%' },
-  { id: 2, seed: 11, date: '22 Abr · 09:15', status: 'normal', label: 'Normal',              count: '128 células · 0%' },
-  { id: 3, seed: 5,  date: '21 Abr · 17:48', status: 'review', label: 'Revisão sugerida',    count: '2 células · 1.8%' },
-  { id: 4, seed: 9,  date: '21 Abr · 11:02', status: 'normal', label: 'Normal',              count: '95 células · 0%' },
-];
-
 const COMMUNITY_PREVIEW = [
   { id: 1, seed: 13, author: 'Dra. Marina L.', spec: 'Biomédica · SP',         q: 'Possível blasto linfoide? 26a, leucocitose de 42.000...' },
   { id: 2, seed: 17, author: 'Carlos M.',      spec: 'Analista Clínico · MG',  q: 'Corpúsculos de Auer visíveis. Concordam com LMA M3?' },
@@ -760,13 +753,16 @@ function HomeScreen({ onNavigate, onStartAnalysis, user }) {
   const [painelAberto, setPainelAberto] = React.useState(false);
   const [naoLidas,     setNaoLidas]     = React.useState(0);
   const [temAviso,     setTemAviso]     = React.useState(false);
+  const [analises,     setAnalises]     = React.useState([]);
 
   const userId = user?.id || user?.email || null;
   const totalBadge = naoLidas + (temAviso ? 1 : 0);
 
-  // Polling a cada 30s para checar novas notificações
+  // Polling notificações + carregar análises
   React.useEffect(() => {
-    const checar = async () => {
+    const token = localStorage.getItem('hema_token');
+
+    const checarNotifs = async () => {
       try {
         if (userId) {
           const r = await fetch(`${window.HemaAPI.base}/community/notificacoes?usuario_id=${userId}`);
@@ -776,10 +772,33 @@ function HomeScreen({ onNavigate, onStartAnalysis, user }) {
         if (r2.ok) { const d2 = await r2.json(); setTemAviso(d2.length > 0); }
       } catch {}
     };
-    checar();
-    const interval = setInterval(checar, 30000);
+
+    const carregarAnalises = async () => {
+      if (!token) return;
+      try {
+        const r = await fetch(`${window.HemaAPI.base}/analysis/historico?limit=4`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (r.ok) {
+          const d = await r.json();
+          setAnalises(d.analises || []);
+        }
+      } catch {}
+    };
+
+    checarNotifs();
+    carregarAnalises();
+    const interval = setInterval(checarNotifs, 30000);
     return () => clearInterval(interval);
   }, [userId]);
+
+  // Formata análise do banco para o card
+  const formatarAnalise = (a, i) => {
+    const status = a.celulas_atipicas ? 'alert' : a.blastos_pct > 0 ? 'review' : 'normal';
+    const label  = a.celulas_atipicas ? 'Células atípicas' : a.blastos_pct > 0 ? `Blastos ${a.blastos_pct}%` : 'Normal';
+    const data   = a.criado_em ? new Date(a.criado_em).toLocaleDateString('pt-BR', { day:'2-digit', month:'short' }) + ' · ' + new Date(a.criado_em).toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' }) : '—';
+    return { id: a.id, seed: (i * 7 + 3) % 30 + 1, date: data, status, label, count: `${a.total_celulas || 0} células · ${a.blastos_pct || 0}%` };
+  };
 
   const initials    = user?.name ? user.name.split(' ').filter(Boolean).map(w => w[0]).slice(0, 2).join('') : 'RS';
   const displayName = user?.name || 'Dr. Rafael Silva';
@@ -910,24 +929,30 @@ function HomeScreen({ onNavigate, onStartAnalysis, user }) {
           <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: COLORS.dim, letterSpacing: 1.6, textTransform: 'uppercase' }}>
             · Últimas análises
           </div>
-          <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: COLORS.red, letterSpacing: 0.6 }}>Ver todas →</div>
+          <div onClick={() => onNavigate('analyze')} style={{ fontFamily: FONT_MONO, fontSize: 10, color: COLORS.red, letterSpacing: 0.6, cursor: 'pointer' }}>Ver histórico →</div>
         </div>
-        <div style={{ display: 'flex', gap: 12, overflowX: 'auto', padding: '0 20px', scrollbarWidth: 'none' }}>
-          {RECENT_ANALYSES.map(a => (
-            <div key={a.id} style={{
-              flexShrink: 0, width: 168,
-              background: COLORS.bg2, border: `0.5px solid ${COLORS.line2}`,
-              borderRadius: 14, overflow: 'hidden',
-            }}>
-              <MicroSlide seed={a.seed} style={{ width: '100%', height: 100 }} />
-              <div style={{ padding: '10px 12px' }}>
-                <StatusBadge status={a.status} label={a.label} />
-                <div style={{ fontFamily: FONT_SANS, fontSize: 11, color: COLORS.white, marginTop: 8, fontWeight: 500 }}>{a.count}</div>
-                <div style={{ fontFamily: FONT_MONO, fontSize: 9, color: COLORS.dim, marginTop: 3, letterSpacing: 0.4 }}>{a.date}</div>
-              </div>
-            </div>
-          ))}
-        </div>
+        {analises.length === 0 ? (
+          <div style={{ margin: '0 20px', padding: '20px', background: COLORS.bg2, borderRadius: 14, border: `0.5px solid ${COLORS.line2}`, textAlign: 'center' }}>
+            <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: COLORS.dim }}>Nenhuma análise realizada ainda</div>
+            <div onClick={() => onNavigate('analyze')} style={{ fontFamily: FONT_MONO, fontSize: 10, color: COLORS.red, marginTop: 8, cursor: 'pointer' }}>Fazer primeira análise →</div>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', gap: 12, overflowX: 'auto', padding: '0 20px', scrollbarWidth: 'none' }}>
+            {analises.map((a, i) => {
+              const fmt = formatarAnalise(a, i);
+              return (
+                <div key={fmt.id} style={{ flexShrink: 0, width: 168, background: COLORS.bg2, border: `0.5px solid ${COLORS.line2}`, borderRadius: 14, overflow: 'hidden' }}>
+                  <MicroSlide seed={fmt.seed} style={{ width: '100%', height: 100 }} />
+                  <div style={{ padding: '10px 12px' }}>
+                    <StatusBadge status={fmt.status} label={fmt.label} />
+                    <div style={{ fontFamily: FONT_SANS, fontSize: 11, color: COLORS.white, marginTop: 8, fontWeight: 500 }}>{fmt.count}</div>
+                    <div style={{ fontFamily: FONT_MONO, fontSize: 9, color: COLORS.dim, marginTop: 3, letterSpacing: 0.4 }}>{fmt.date}</div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Community preview */}
