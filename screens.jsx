@@ -753,12 +753,12 @@ function HomeScreen({ onNavigate, onStartAnalysis, user }) {
   const [painelAberto, setPainelAberto] = React.useState(false);
   const [naoLidas,     setNaoLidas]     = React.useState(0);
   const [temAviso,     setTemAviso]     = React.useState(false);
-  const [analises,     setAnalises]     = React.useState([]);
+  const [analises,       setAnalises]       = React.useState([]);
+  const [communityPosts, setCommunityPosts] = React.useState([]);
 
   const userId = user?.id || user?.email || null;
   const totalBadge = naoLidas + (temAviso ? 1 : 0);
 
-  // Polling notificações + carregar análises
   React.useEffect(() => {
     const token = localStorage.getItem('hema_token');
 
@@ -779,15 +779,30 @@ function HomeScreen({ onNavigate, onStartAnalysis, user }) {
         const r = await fetch(`${window.HemaAPI.base}/analysis/historico?limit=4`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
+        if (r.ok) { const d = await r.json(); setAnalises(d.analises || []); }
+      } catch {}
+    };
+
+    const carregarComunidade = async () => {
+      try {
+        const r = await fetch(`${window.HemaAPI.base}/community/posts?limit=2&secao=recente`);
         if (r.ok) {
           const d = await r.json();
-          setAnalises(d.analises || []);
+          const posts = (d.posts || d).slice(0, 2).map((p, i) => ({
+            id:     p.id,
+            seed:   (i * 7 + 13) % 30 + 1,
+            author: p.autor_nome || 'Usuário',
+            spec:   p.autor_crbio || 'Biomédico',
+            q:      p.caption,
+          }));
+          setCommunityPosts(posts);
         }
       } catch {}
     };
 
     checarNotifs();
     carregarAnalises();
+    carregarComunidade();
     const interval = setInterval(checarNotifs, 30000);
     return () => clearInterval(interval);
   }, [userId]);
@@ -805,7 +820,7 @@ function HomeScreen({ onNavigate, onStartAnalysis, user }) {
   const crbio       = user?.crbio || 'CRBM 12345';
 
   return (
-    <div style={{ paddingBottom: 120, minHeight: '100%', position: 'relative' }}>
+    <div style={{ paddingBottom: 140, minHeight: '100%', position: 'relative' }}>
       <LabGrid opacity={0.035} />
 
       {/* Header */}
@@ -966,11 +981,11 @@ function HomeScreen({ onNavigate, onStartAnalysis, user }) {
           }}>Ver comunidade →</div>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {COMMUNITY_PREVIEW.map(p => (
-            <div key={p.id} style={{
+          {(communityPosts.length > 0 ? communityPosts : []).map(p => (
+            <div key={p.id} onClick={() => onNavigate('community')} style={{
               display: 'flex', gap: 12, alignItems: 'center',
               background: COLORS.bg2, border: `0.5px solid ${COLORS.line2}`,
-              borderRadius: 12, padding: 10,
+              borderRadius: 12, padding: 10, cursor: 'pointer',
             }}>
               <MicroSlide seed={p.seed} style={{ width: 52, height: 52, borderRadius: 8, flexShrink: 0 }} />
               <div style={{ flex: 1, minWidth: 0 }}>
@@ -984,6 +999,15 @@ function HomeScreen({ onNavigate, onStartAnalysis, user }) {
               </div>
             </div>
           ))}
+          {communityPosts.length === 0 && (
+            <div onClick={() => onNavigate('community')} style={{
+              background: COLORS.bg2, border: `0.5px solid ${COLORS.line2}`,
+              borderRadius: 12, padding: 14, textAlign: 'center', cursor: 'pointer',
+            }}>
+              <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: COLORS.dim }}>Seja o primeiro a postar!</div>
+              <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: COLORS.red, marginTop: 6 }}>Abrir comunidade →</div>
+            </div>
+          )}
         </div>
       </div>
 
