@@ -149,6 +149,9 @@ function PostCard({ post, onUpdate, onAbrir, onDelete }) {
   const [novoComentario, setNovoComentario]         = React.useState('');
   const [respondendoA, setRespondendoA]             = React.useState(null);
   const [menuAberto, setMenuAberto]                 = React.useState(false);
+  const [editando, setEditando]                     = React.useState(false);
+  const [editCaption, setEditCaption]               = React.useState(post.caption);
+  const [salvandoEdit, setSalvandoEdit]             = React.useState(false);
   const inputRef = React.useRef();
 
   const getToken = () => localStorage.getItem('hema_token') || null;
@@ -158,25 +161,48 @@ function PostCard({ post, onUpdate, onAbrir, onDelete }) {
              : { 'Content-Type': 'application/json' };
   };
 
-  // Detecta dono do post
   const currentUser = (() => { try { return JSON.parse(localStorage.getItem('hema_user') || '{}'); } catch { return {}; } })();
   const isOwner = (
-    post.author    === 'Você' ||
-    post.author    === currentUser.nome  ||
-    post.author    === currentUser.name  ||
+    post.author === 'Você' ||
+    post.author === currentUser.nome ||
+    post.author === currentUser.name ||
     post.spec?.includes(currentUser.crbio)
   );
 
   const excluirPost = async () => {
-    if (!confirm('Excluir este post?')) return;
+    if (!confirm('Excluir este post permanentemente?')) return;
     setMenuAberto(false);
     try {
-      await fetch(`${window.HemaAPI.base}/community/posts/${post.id}`, {
+      const r = await fetch(`${window.HemaAPI.base}/community/posts/${post.id}`, {
         method: 'DELETE',
         headers: authHeaders(),
       });
+      if (r.ok) {
+        if (onDelete) onDelete(post.id);
+      } else {
+        alert('Erro ao excluir. Tente novamente.');
+      }
+    } catch {
+      // Remove local mesmo se API falhar
+      if (onDelete) onDelete(post.id);
+    }
+  };
+
+  const salvarEdicao = async () => {
+    if (!editCaption.trim()) return;
+    setSalvandoEdit(true);
+    try {
+      const r = await fetch(`${window.HemaAPI.base}/community/posts/${post.id}`, {
+        method: 'PATCH',
+        headers: authHeaders(),
+        body: JSON.stringify({ caption: editCaption }),
+      });
+      if (r.ok) {
+        onUpdate({ ...post, caption: editCaption });
+        setEditando(false);
+      }
     } catch {}
-    if (onDelete) onDelete(post.id);
+    setSalvandoEdit(false);
   };
 
   const toggleReaction = async (tipo) => {
@@ -274,7 +300,7 @@ function PostCard({ post, onUpdate, onAbrir, onDelete }) {
               }}>
                 {isOwner ? (
                   <>
-                    <div onClick={() => { setMenuAberto(false); alert('Edição em breve!'); }} style={{
+                    <div onClick={() => { setMenuAberto(false); setEditCaption(post.caption); setEditando(true); }} style={{
                       padding: '11px 14px', fontFamily: FONT_SANS, fontSize: 13,
                       color: COLORS.white, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8,
                       borderBottom: `0.5px solid ${COLORS.line}`,
@@ -468,6 +494,38 @@ function PostCard({ post, onUpdate, onAbrir, onDelete }) {
                   <path d="M3 12l18-9-5 18-4-8-9-1z" fill={novoComentario.trim() ? COLORS.white : COLORS.dim}/>
                 </svg>
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de edição */}
+      {editando && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'flex-end' }}>
+          <div style={{ width: '100%', background: '#0F1E35', borderRadius: '20px 20px 0 0', padding: '20px 18px 40px', border: `0.5px solid ${COLORS.line2}` }}>
+            <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: COLORS.dim, letterSpacing: 1, marginBottom: 12, textTransform: 'uppercase' }}>· Editar post</div>
+            <textarea
+              value={editCaption}
+              onChange={e => setEditCaption(e.target.value)}
+              style={{
+                width: '100%', minHeight: 100, background: 'rgba(240,244,248,0.04)',
+                border: `1px solid ${COLORS.line2}`, borderRadius: 10, padding: '10px 12px',
+                color: COLORS.white, fontFamily: FONT_SANS, fontSize: 13, lineHeight: 1.5,
+                resize: 'none', outline: 'none', boxSizing: 'border-box',
+              }}
+            />
+            <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
+              <button onClick={() => setEditando(false)} style={{
+                flex: 1, background: 'transparent', border: `0.5px solid ${COLORS.line2}`,
+                color: COLORS.muted, borderRadius: 10, padding: '12px',
+                fontFamily: FONT_MONO, fontSize: 10, cursor: 'pointer',
+              }}>Cancelar</button>
+              <button onClick={salvarEdicao} disabled={salvandoEdit} style={{
+                flex: 2, background: COLORS.red, border: 'none',
+                color: COLORS.white, borderRadius: 10, padding: '12px',
+                fontFamily: FONT_MONO, fontSize: 10, fontWeight: 700,
+                letterSpacing: 1, cursor: 'pointer', opacity: salvandoEdit ? 0.6 : 1,
+              }}>{salvandoEdit ? 'Salvando...' : 'Salvar edição'}</button>
             </div>
           </div>
         </div>
