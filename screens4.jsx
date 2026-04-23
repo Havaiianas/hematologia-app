@@ -662,30 +662,42 @@ function CommunityScreenV2() {
     const carregar = async () => {
       setCarregando(true);
       try {
-        const r = await fetch(`${window.HemaAPI.base}/community/posts?limit=30`);
+        const user = (() => { try { return JSON.parse(localStorage.getItem('hema_user') || '{}'); } catch { return {}; } })();
+        const uid = user?.id || user?.email || '';
+        const r = await fetch(`${window.HemaAPI.base}/community/posts?limit=30&usuario_id=${encodeURIComponent(uid)}`);
         if (r.ok) {
           const d = await r.json();
-          // Normaliza para o formato que o componente espera
           const normalizados = (d.posts || d).map(p => ({
             id:         p.id,
             seed:       Math.floor(Math.random() * 99) + 1,
             author:     p.autor_nome || 'Usuário',
-            spec:       p.autor_spec || 'Biomédico',
+            spec:       p.autor_crbio || 'Biomédico',
             initials:   (p.autor_nome || 'U').split(' ').map(w => w[0]).slice(0,2).join(''),
             caption:    p.caption,
             tags:       p.tags || [],
             ia:         p.ia_resumo || null,
             confidence: p.confianca_pct || null,
-            reactions:  { scope: p.total_reacoes || 0, alert: 0, agree: 0 },
+            reactions: {
+              scope: { n: p.total_reacoes || 0, ativo: p.minha_reacao === 'scope' },
+              alert: { n: 0, ativo: p.minha_reacao === 'alert' },
+              agree: { n: 0, ativo: p.minha_reacao === 'agree' },
+            },
             comments:   p.total_comentarios || 0,
             trending:   p.trending || false,
             imagem_url: p.imagem_url || null,
-            comentarios: [],
+            comentarios: (p.comentarios || []).map(cm => ({
+              id:       cm.id,
+              author:   cm.author,
+              initials: cm.initials,
+              spec:     cm.spec,
+              texto:    cm.texto,
+              time:     cm.time,
+              respostas: [],
+            })),
           }));
           setPosts(normalizados);
         }
       } catch {
-        // Se falhar, mostra vazio
         setPosts([]);
       }
       setCarregando(false);
