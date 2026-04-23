@@ -339,8 +339,8 @@ function PostCard({ post, onUpdate, onAbrir, onDelete }) {
 
       {/* Imagem do esfregaço */}
       <div onClick={() => onAbrir(post)} style={{ position: 'relative', height: 200, cursor: 'pointer' }}>
-        {post.imageURL
-          ? <img src={post.imageURL} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        {(post.imagem_url || post.imageURL)
+          ? <img src={post.imagem_url || post.imageURL} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           : <MicroSlide seed={post.seed} boxes={[
               { x: 20, y: 28, w: 11, h: 12, color: COLORS.red,   label: 'B' },
               { x: 56, y: 38, w: 11, h: 12, color: COLORS.red,   label: 'B' },
@@ -557,16 +557,57 @@ function NovoPostModal({ onClose, onPublicar }) {
   const publicar = async () => {
     if (!texto.trim()) return;
     setLoading(true);
-    // Simula delay de upload
-    await new Promise(r => setTimeout(r, 800));
+
+    const token = localStorage.getItem('hema_token');
+    const user  = (() => { try { return JSON.parse(localStorage.getItem('hema_user') || '{}'); } catch { return {}; } })();
+    const authH = token ? { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' };
+
+    // Converte imagem para base64 se houver
+    let imagem_url = null;
+    if (imageFile) {
+      try {
+        imagem_url = await new Promise((res, rej) => {
+          const reader = new FileReader();
+          reader.onload  = () => res(reader.result); // data:image/jpeg;base64,...
+          reader.onerror = rej;
+          reader.readAsDataURL(imageFile);
+        });
+      } catch { imagem_url = null; }
+    }
+
+    // Salva no backend
+    let postId = String(Date.now());
+    try {
+      const r = await fetch(`${window.HemaAPI.base}/community/posts`, {
+        method: 'POST',
+        headers: authH,
+        body: JSON.stringify({
+          caption:    texto,
+          tags:       tagsSel,
+          imagem_url: imagem_url,
+        }),
+      });
+      if (r.ok) {
+        const d = await r.json();
+        postId = d.id || postId;
+      }
+    } catch {}
+
     const agora = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
     onPublicar({
-      id: Date.now(), seed: Math.floor(Math.random() * 50) + 1,
-      author: 'Você', spec: 'Usuário · Hematolog.IA', initials: 'VC',
-      caption: texto, tags: tagsSel, imageURL,
-      ia: tagsSel.length > 0 ? 'Análise IA pendente — envie uma imagem para análise automática.' : null,
+      id:       postId,
+      seed:     Math.floor(Math.random() * 50) + 1,
+      author:   user.nome || user.name || 'Você',
+      spec:     user.crbio || 'Usuário · Hematolog.IA',
+      initials: (user.nome || 'VC').split(' ').map(w => w[0]).slice(0,2).join(''),
+      caption:  texto,
+      tags:     tagsSel,
+      imagem_url,
+      imageURL: imagem_url,
+      ia:       tagsSel.length > 0 ? 'Análise IA pendente.' : null,
       reactions: { scope: { n: 0, ativo: false }, alert: { n: 0, ativo: false }, agree: { n: 0, ativo: false } },
-      trending: false, comentarios: [],
+      trending:  false,
+      comentarios: [],
     });
     setLoading(false);
   };
@@ -728,8 +769,8 @@ function PostDetalheScreen({ post, onBack, onUpdate }) {
 
       {/* Imagem ampliada */}
       <div style={{ width: '100%', height: 280, position: 'relative' }}>
-        {post.imageURL
-          ? <img src={post.imageURL} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        {(post.imagem_url || post.imageURL)
+          ? <img src={post.imagem_url || post.imageURL} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           : <MicroSlide seed={post.seed} style={{ width: '100%', height: '100%' }} />
         }
       </div>
