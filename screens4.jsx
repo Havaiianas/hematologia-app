@@ -144,18 +144,34 @@ function Comentario({ c, onResponder }) {
 // ══════════════════════════════════════════════════
 // CARD DE POST
 // ══════════════════════════════════════════════════
-function PostCard({ post, onUpdate, onAbrir }) {
+function PostCard({ post, onUpdate, onAbrir, onDelete }) {
   const [comentariosAbertos, setComentariosAbertos] = React.useState(false);
   const [novoComentario, setNovoComentario]         = React.useState('');
   const [respondendoA, setRespondendoA]             = React.useState(null);
+  const [menuAberto, setMenuAberto]                 = React.useState(false);
   const inputRef = React.useRef();
 
-  // Helper para pegar token do localStorage
   const getToken = () => localStorage.getItem('hema_token') || null;
   const authHeaders = () => {
     const t = getToken();
     return t ? { 'Authorization': `Bearer ${t}`, 'Content-Type': 'application/json' }
              : { 'Content-Type': 'application/json' };
+  };
+
+  // Verifica se o post é do usuário logado
+  const getUserEmail = () => { try { return JSON.parse(localStorage.getItem('hema_user') || '{}').email || ''; } catch { return ''; } };
+  const isOwner = post.author === 'Você' || post.usuario_id === getUserEmail();
+
+  const excluirPost = async () => {
+    if (!confirm('Excluir este post?')) return;
+    setMenuAberto(false);
+    try {
+      await fetch(`${window.HemaAPI.base}/community/posts/${post.id}`, {
+        method: 'DELETE',
+        headers: authHeaders(),
+      });
+    } catch {}
+    if (onDelete) onDelete(post.id);
   };
 
   const toggleReaction = async (tipo) => {
@@ -235,10 +251,59 @@ function PostCard({ post, onUpdate, onAbrir }) {
             padding: '2px 6px', borderRadius: 4, letterSpacing: 0.6,
           }}>TRENDING</div>
         )}
-        <button style={{
-          background: 'none', border: 'none', cursor: 'pointer',
-          color: COLORS.dim, fontSize: 18, padding: '0 4px', lineHeight: 1,
-        }}>···</button>
+        {/* Menu ··· */}
+        <div style={{ position: 'relative' }}>
+          <button onClick={() => setMenuAberto(v => !v)} style={{
+            background: 'none', border: 'none', cursor: 'pointer',
+            color: COLORS.dim, fontSize: 18, padding: '0 4px', lineHeight: 1,
+          }}>···</button>
+          {menuAberto && (
+            <>
+              {/* Overlay para fechar */}
+              <div onClick={() => setMenuAberto(false)} style={{ position: 'fixed', inset: 0, zIndex: 99 }} />
+              <div style={{
+                position: 'absolute', top: 24, right: 0, zIndex: 100,
+                background: '#0F1E35', border: `0.5px solid ${COLORS.line2}`,
+                borderRadius: 10, overflow: 'hidden', minWidth: 160,
+                boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
+              }}>
+                {isOwner ? (
+                  <>
+                    <div onClick={() => { setMenuAberto(false); alert('Edição em breve!'); }} style={{
+                      padding: '11px 14px', fontFamily: FONT_SANS, fontSize: 13,
+                      color: COLORS.white, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8,
+                      borderBottom: `0.5px solid ${COLORS.line}`,
+                    }}>
+                      ✏️ Editar post
+                    </div>
+                    <div onClick={excluirPost} style={{
+                      padding: '11px 14px', fontFamily: FONT_SANS, fontSize: 13,
+                      color: COLORS.red, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8,
+                    }}>
+                      🗑️ Excluir post
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div onClick={() => { setMenuAberto(false); alert('Denúncia enviada. Obrigado!'); }} style={{
+                      padding: '11px 14px', fontFamily: FONT_SANS, fontSize: 13,
+                      color: COLORS.muted, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8,
+                      borderBottom: `0.5px solid ${COLORS.line}`,
+                    }}>
+                      🚩 Denunciar
+                    </div>
+                    <div onClick={() => { setMenuAberto(false); }} style={{
+                      padding: '11px 14px', fontFamily: FONT_SANS, fontSize: 13,
+                      color: COLORS.muted, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8,
+                    }}>
+                      🔕 Não tenho interesse
+                    </div>
+                  </>
+                )}
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
       {/* Imagem do esfregaço */}
@@ -709,6 +774,10 @@ function CommunityScreenV2() {
     setPosts(prev => prev.map(p => p.id === postAtualizado.id ? postAtualizado : p));
   };
 
+  const deletarPost = (postId) => {
+    setPosts(prev => prev.filter(p => p.id !== postId));
+  };
+
   // Publica post no backend E atualiza estado local
   const publicar = async (novoP) => {
     try {
@@ -844,7 +913,7 @@ function CommunityScreenV2() {
             <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: COLORS.dim, marginTop: 6 }}>Tente outras tags ou seja o primeiro a postar!</div>
           </div>
         ) : postsFiltrados.map(p => (
-          <PostCard key={p.id} post={p} onUpdate={atualizar} onAbrir={setPostAberto} />
+          <PostCard key={p.id} post={p} onUpdate={atualizar} onAbrir={setPostAberto} onDelete={deletarPost} />
         ))}
       </div>
 
