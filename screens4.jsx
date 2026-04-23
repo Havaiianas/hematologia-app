@@ -1,4 +1,4 @@
-// screens4.jsx — Comunidade completa: feed, reações, comentários, novo post
+ // screens4.jsx — Comunidade completa: feed, reações, comentários, novo post
 const { COLORS, FONT_DISPLAY, FONT_MONO, FONT_SANS, MicroSlide, Logo, CellIcon, LabGrid, Coords } = window.Hema;
 
 // ══════════════════════════════════════════════════
