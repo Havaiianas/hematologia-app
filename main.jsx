@@ -120,8 +120,7 @@ function App() {
   // Tela de pagamento para NOVO usuário (antes de criar conta)
   if (!loggedIn && tela === 'pagamento-novo') {
     return (
-      <IOSDevice dark width={402} height={874}>
-        <div style={{ position: 'absolute', inset: 0, background: COLORS.bg, overflow: 'hidden' }}>
+      <div style={{ position: 'fixed', inset: 0, background: COLORS.bg, overflow: 'hidden' }}>
           <PagamentoScreen
             plano="pro"
             anual={anualEscolhido}
@@ -130,16 +129,14 @@ function App() {
             onSucesso={handlePagamentoNovoConcluido}
             onBack={() => setTela('cadastro')}
           />
-        </div>
-      </IOSDevice>
+      </div>
     );
   }
 
   // Fluxo de auth normal
   if (!loggedIn) {
     return (
-      <IOSDevice dark width={402} height={874}>
-        <div style={{ position: 'absolute', inset: 0, background: COLORS.bg, overflow: 'hidden' }}>
+      <div style={{ position: 'fixed', inset: 0, background: COLORS.bg, overflow: 'hidden' }}>
           {tela === 'login' && (
             <LoginScreen
               onLogin={handleLogin}
@@ -164,8 +161,7 @@ function App() {
           {tela === 'recuperacao' && (
             <RecuperacaoSenhaScreen onBack={() => setTela('login')} />
           )}
-        </div>
-      </IOSDevice>
+      </div>
     );
   }
 
@@ -173,8 +169,7 @@ function App() {
   const planoAtual = user?.plano || 'free';
 
   return (
-    <IOSDevice dark width={402} height={874}>
-      <div style={{ position: 'absolute', inset: 0, background: COLORS.bg, overflow: 'hidden' }}>
+    <div style={{ position: 'fixed', inset: 0, background: COLORS.bg, overflow: 'hidden' }}>
 
         <div key={tab} style={{ position: 'absolute', inset: 0, overflowY: 'auto', animation: 'fadeIn 260ms ease-out' }}>
           {tab === 'home'      && <HomeScreen onNavigate={navegar} onStartAnalysis={() => navegar('analyze')} user={user} />}
@@ -227,8 +222,7 @@ function App() {
           </div>
         )}
 
-      </div>
-    </IOSDevice>
+    </div>
   );
 }
 

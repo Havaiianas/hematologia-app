@@ -630,27 +630,103 @@ function PostDetalheScreen({ post, onBack, onUpdate }) {
 // TELA — COMUNIDADE (principal)
 // ══════════════════════════════════════════════════
 function CommunityScreenV2() {
-  const [posts,       setPosts]       = React.useState(POSTS_INICIAIS);
+  const [posts,       setPosts]       = React.useState([]);
+  const [carregando,  setCarregando]  = React.useState(true);
   const [activeTag,   setActiveTag]   = React.useState(null);
   const [busca,       setBusca]       = React.useState('');
   const [novoPost,    setNovoPost]    = React.useState(false);
   const [postAberto,  setPostAberto]  = React.useState(null);
   const [secao,       setSecao]       = React.useState('trending');
 
+  // Carrega posts do backend ao montar
+  React.useEffect(() => {
+    const carregar = async () => {
+      setCarregando(true);
+      try {
+        const r = await fetch(`${window.HemaAPI.base}/community/posts?limit=30`);
+        if (r.ok) {
+          const d = await r.json();
+          // Normaliza para o formato que o componente espera
+          const normalizados = (d.posts || d).map(p => ({
+            id:         p.id,
+            seed:       Math.floor(Math.random() * 99) + 1,
+            author:     p.autor_nome || 'Usuário',
+            spec:       p.autor_spec || 'Biomédico',
+            initials:   (p.autor_nome || 'U').split(' ').map(w => w[0]).slice(0,2).join(''),
+            caption:    p.caption,
+            tags:       p.tags || [],
+            ia:         p.ia_resumo || null,
+            confidence: p.confianca_pct || null,
+            reactions:  { scope: p.total_reacoes || 0, alert: 0, agree: 0 },
+            comments:   p.total_comentarios || 0,
+            trending:   p.trending || false,
+            imagem_url: p.imagem_url || null,
+            comentarios: [],
+          }));
+          setPosts(normalizados);
+        }
+      } catch {
+        // Se falhar, mostra vazio
+        setPosts([]);
+      }
+      setCarregando(false);
+    };
+    carregar();
+  }, []);
+
   const atualizar = (postAtualizado) => {
     setPosts(prev => prev.map(p => p.id === postAtualizado.id ? postAtualizado : p));
   };
 
-  const publicar = (novoP) => {
-    setPosts(prev => [novoP, ...prev]);
+  // Publica post no backend E atualiza estado local
+  const publicar = async (novoP) => {
+    try {
+      const user = (() => { try { return JSON.parse(localStorage.getItem('hema_user') || '{}'); } catch { return {}; } })();
+      const token = localStorage.getItem('hema_token');
+      const r = await fetch(`${window.HemaAPI.base}/community/posts`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          caption:    novoP.caption,
+          tags:       novoP.tags || [],
+          ia_resumo:  novoP.ia || null,
+          imagem_url: novoP.imagem_url || null,
+        }),
+      });
+      if (r.ok) {
+        const salvo = await r.json();
+        const postNormalizado = {
+          ...novoP,
+          id: salvo.id || novoP.id,
+        };
+        setPosts(prev => [postNormalizado, ...prev]);
+      } else {
+        // Se falhar na API, salva local mesmo assim
+        setPosts(prev => [novoP, ...prev]);
+      }
+    } catch {
+      setPosts(prev => [novoP, ...prev]);
+    }
     setNovoPost(false);
   };
 
   const postsFiltrados = posts.filter(p => {
     const matchTag   = !activeTag || p.tags.includes(activeTag);
-    const matchBusca = !busca || p.caption.toLowerCase().includes(busca.toLowerCase()) || p.author.toLowerCase().includes(busca.toLowerCase());
+    const matchBusca = !busca || p.caption.toLowerCase().includes(busca.toLowerCase()) || (p.author || '').toLowerCase().includes(busca.toLowerCase());
     return matchTag && matchBusca;
   });
+
+  if (carregando) {
+    return (
+      <div style={{ position: 'absolute', inset: 0, background: COLORS.bg, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16 }}>
+        <div style={{ width: 32, height: 32, borderRadius: '50%', border: `2px solid ${COLORS.line2}`, borderTopColor: COLORS.red, animation: 'spin 0.8s linear infinite' }} />
+        <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: COLORS.dim, letterSpacing: 1 }}>Carregando comunidade...</div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ position: 'absolute', inset: 0 }}>
