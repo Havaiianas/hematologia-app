@@ -1095,11 +1095,216 @@ function ChatScreen({ token }) {
 // ══════════════════════════════════════════════════
 // SCREEN 6 — PROFILE
 // ══════════════════════════════════════════════════
-function ProfileScreen({ user, onLogout }) {
-  const initials    = user?.name ? user.name.split(' ').filter(Boolean).map(w => w[0]).slice(0, 2).join('') : 'RS';
-  const displayName = user?.name || 'Dr. Rafael Silva';
+function ProfileScreen({ user, onLogout, onUpgrade }) {
+  const initials    = user?.name ? user.name.split(' ').filter(Boolean).map(w => w[0]).slice(0, 2).join('') : (user?.nome || 'U').split(' ').map(w => w[0]).slice(0,2).join('');
+  const displayName = user?.name || user?.nome || 'Dr. Rafael Silva';
   const crbio       = user?.crbio || 'CRBM 12345';
   const specialty   = user?.specialty || 'Hematologia Clínica';
+  const plano       = user?.plano || 'free';
+
+  const [assinatura,   setAssinatura]   = React.useState(null);
+  const [loadingPlano, setLoadingPlano] = React.useState(true);
+
+  React.useEffect(() => {
+    const buscarAssinatura = async () => {
+      const token = localStorage.getItem('hema_token');
+      if (!token) { setLoadingPlano(false); return; }
+      try {
+        const r = await fetch(`${window.HemaAPI.base}/billing/status`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (r.ok) setAssinatura(await r.json());
+      } catch {}
+      setLoadingPlano(false);
+    };
+    buscarAssinatura();
+  }, []);
+
+  const formatarData = (d) => {
+    if (!d) return '—';
+    try {
+      return new Date(d).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
+    } catch { return d; }
+  };
+
+  const iconeMeio = (m) => {
+    if (!m) return '💳';
+    if (m.includes('pix'))    return '⚡';
+    if (m.includes('boleto')) return '🏦';
+    return '💳';
+  };
+
+  const statusBadge = (s) => {
+    if (!s || s === 'ACTIVE')   return { label: 'Ativa',       cor: COLORS.green };
+    if (s === 'OVERDUE')        return { label: 'Inadimplente', cor: COLORS.amber };
+    if (s === 'CANCELLED')      return { label: 'Cancelada',    cor: COLORS.red };
+    if (s === 'PENDING')        return { label: 'Pendente',     cor: COLORS.amber };
+    return { label: s, cor: COLORS.muted };
+  };
+
+  return (
+    <div style={{ paddingBottom: 120, minHeight: '100%', position: 'relative' }}>
+      <LabGrid opacity={0.035} />
+      <div style={{ position: 'relative', height: 140 }}>
+        <div style={{ position: 'absolute', inset: 0 }}>
+          <MicroSlide seed={29} style={{ width: '100%', height: '100%', filter: 'blur(6px)' }} />
+          <div style={{ position: 'absolute', inset: 0, background: `linear-gradient(180deg, rgba(6,13,26,0.4), ${COLORS.bg})` }} />
+        </div>
+      </div>
+      <div style={{ padding: '0 20px', marginTop: -50, position: 'relative' }}>
+
+        {/* Avatar + nome */}
+        <div style={{ width: 90, height: 90, borderRadius: '50%', background: `linear-gradient(135deg, ${COLORS.red}, #6A1A12)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: FONT_DISPLAY, fontSize: 32, color: COLORS.white, border: `3px solid ${COLORS.bg}`, boxShadow: `0 0 20px ${COLORS.red}40` }}>{initials}</div>
+        <div style={{ marginTop: 12 }}>
+          <div style={{ fontFamily: FONT_DISPLAY, fontSize: 24, color: COLORS.white, fontWeight: 600, letterSpacing: -0.3 }}>{displayName}</div>
+          <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: COLORS.muted, letterSpacing: 0.8, marginTop: 3 }}>{specialty.toUpperCase()} · {crbio}</div>
+        </div>
+
+        {/* Stats */}
+        <div style={{ marginTop: 16, display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', background: COLORS.bg2, border: `0.5px solid ${COLORS.line2}`, borderRadius: 14, overflow: 'hidden' }}>
+          {[{ n: user?.total_analises || '0', l: 'Análises' }, { n: '0', l: 'Publicados' }, { n: user?.precisao_pct ? `${user.precisao_pct}%` : '—', l: 'Precisão' }].map((s, i) => (
+            <div key={i} style={{ padding: '14px 10px', textAlign: 'center', borderRight: i < 2 ? `0.5px solid ${COLORS.line}` : 'none' }}>
+              <div style={{ fontFamily: FONT_DISPLAY, fontSize: 22, color: COLORS.white, fontWeight: 700 }}>{s.n}</div>
+              <div style={{ fontFamily: FONT_MONO, fontSize: 9, color: COLORS.dim, letterSpacing: 0.8, textTransform: 'uppercase', marginTop: 2 }}>{s.l}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* ── Card de Assinatura ── */}
+        <div style={{ marginTop: 18 }}>
+          <div style={{ fontFamily: FONT_MONO, fontSize: 9, color: COLORS.dim, letterSpacing: 1.4, textTransform: 'uppercase', marginBottom: 10 }}>· Assinatura</div>
+          <div style={{
+            borderRadius: 14, overflow: 'hidden',
+            background: plano === 'pro'
+              ? `linear-gradient(135deg, rgba(192,57,43,0.15), ${COLORS.bg2})`
+              : COLORS.bg2,
+            border: `0.5px solid ${plano === 'pro' ? COLORS.redBorder : COLORS.line2}`,
+          }}>
+            {/* Header do card */}
+            <div style={{ padding: '14px 16px', borderBottom: `0.5px solid ${COLORS.line}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{
+                  fontFamily: FONT_DISPLAY, fontSize: 18, fontWeight: 700,
+                  color: plano === 'pro' ? COLORS.red : COLORS.muted,
+                }}>
+                  {plano === 'pro' ? '⭐ Plano Pro' : '🔓 Plano Free'}
+                </div>
+                {!loadingPlano && assinatura?.subscription_status && (() => {
+                  const { label, cor } = statusBadge(assinatura.subscription_status);
+                  return (
+                    <div style={{ fontFamily: FONT_MONO, fontSize: 8, color: cor, background: `${cor}20`, border: `0.5px solid ${cor}50`, borderRadius: 4, padding: '2px 6px', letterSpacing: 0.8 }}>
+                      {label}
+                    </div>
+                  );
+                })()}
+              </div>
+              {loadingPlano && (
+                <div style={{ width: 14, height: 14, borderRadius: '50%', border: `2px solid ${COLORS.line2}`, borderTopColor: COLORS.red, animation: 'spin 0.8s linear infinite' }} />
+              )}
+            </div>
+
+            {/* Detalhes Pro */}
+            {plano === 'pro' && !loadingPlano && (
+              <div style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <div style={{ fontFamily: FONT_MONO, fontSize: 9, color: COLORS.dim, letterSpacing: 0.4 }}>PERÍODO</div>
+                  <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: COLORS.white }}>
+                    {assinatura?.periodo === 'anual' ? 'Anual · R$ 790/ano' : 'Mensal · R$ 89/mês'}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <div style={{ fontFamily: FONT_MONO, fontSize: 9, color: COLORS.dim, letterSpacing: 0.4 }}>PRÓXIMA COBRANÇA</div>
+                  <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: COLORS.white }}>
+                    {formatarData(assinatura?.proxima_cobranca)}
+                  </div>
+                </div>
+                {assinatura?.meio_pagamento && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <div style={{ fontFamily: FONT_MONO, fontSize: 9, color: COLORS.dim, letterSpacing: 0.4 }}>MEIO DE PAGAMENTO</div>
+                    <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: COLORS.white }}>
+                      {iconeMeio(assinatura.meio_pagamento)} {assinatura.meio_pagamento}
+                    </div>
+                  </div>
+                )}
+                <div style={{ marginTop: 4, display: 'flex', gap: 8 }}>
+                  <button onClick={() => window.open('https://sandbox.asaas.com', '_blank')} style={{
+                    flex: 1, background: 'transparent', border: `0.5px solid ${COLORS.line2}`,
+                    color: COLORS.muted, borderRadius: 8, padding: '8px',
+                    fontFamily: FONT_MONO, fontSize: 9, letterSpacing: 0.6, cursor: 'pointer',
+                  }}>
+                    Gerenciar pagamento →
+                  </button>
+                  <button onClick={() => {
+                    if (confirm('Cancelar assinatura? Você voltará para o plano Free.')) {
+                      const token = localStorage.getItem('hema_token');
+                      fetch(`${window.HemaAPI.base}/billing/cancelar`, {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ motivo: 'Cancelado pelo usuário' }),
+                      }).then(() => window.location.reload());
+                    }
+                  }} style={{
+                    background: 'transparent', border: `0.5px solid rgba(192,57,43,0.4)`,
+                    color: COLORS.red, borderRadius: 8, padding: '8px 12px',
+                    fontFamily: FONT_MONO, fontSize: 9, cursor: 'pointer',
+                  }}>
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Free — botão upgrade */}
+            {plano === 'free' && (
+              <div style={{ padding: '14px 16px' }}>
+                <div style={{ fontFamily: FONT_SANS, fontSize: 12, color: COLORS.muted, marginBottom: 12, lineHeight: 1.5 }}>
+                  Faça upgrade para analisar esfregaços com IA, exportar laudos e acessar o chat com a Hema.
+                </div>
+                <button onClick={onUpgrade} style={{
+                  width: '100%', background: COLORS.red, color: COLORS.white,
+                  border: 'none', borderRadius: 10, padding: '12px',
+                  fontFamily: FONT_MONO, fontSize: 11, letterSpacing: 1.6, fontWeight: 700,
+                  textTransform: 'uppercase', cursor: 'pointer',
+                  boxShadow: `0 4px 14px ${COLORS.red}40`,
+                }}>
+                  Assinar Pro — R$ 89/mês →
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Configurações */}
+        <div style={{ marginTop: 18 }}>
+          <div style={{ fontFamily: FONT_MONO, fontSize: 9, color: COLORS.dim, letterSpacing: 1.4, textTransform: 'uppercase', marginBottom: 10 }}>· Configurações</div>
+          <div style={{ background: COLORS.bg2, border: `0.5px solid ${COLORS.line2}`, borderRadius: 14, overflow: 'hidden' }}>
+            {[
+              { t: 'Histórico de análises', d: 'Ver laudos salvos' },
+              { t: 'Privacidade LGPD',      d: 'Anonimização ativa' },
+              { t: 'Integração LIS',        d: 'Conectar laboratório' },
+              { t: 'Exportação de dados',   d: 'PDF / CSV' },
+              { t: 'Sair da conta',         d: '', danger: true },
+            ].map((r, i, a) => (
+              <div key={i} onClick={r.danger ? onLogout : undefined} style={{
+                padding: '14px 14px', display: 'flex', alignItems: 'center',
+                borderBottom: i < a.length - 1 ? `0.5px solid ${COLORS.line}` : 'none',
+                cursor: 'pointer',
+              }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontFamily: FONT_SANS, fontSize: 13, color: r.danger ? COLORS.red : COLORS.white, fontWeight: 500 }}>{r.t}</div>
+                  {r.d && <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: COLORS.dim, marginTop: 2, letterSpacing: 0.3 }}>{r.d}</div>}
+                </div>
+                {!r.danger && (
+                  <svg width="7" height="12" viewBox="0 0 8 14"><path d="M1 1l6 6-6 6" stroke={COLORS.dim} strokeWidth="1.8" fill="none" strokeLinecap="round"/></svg>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
   return (
     <div style={{ paddingBottom: 120, minHeight: '100%', position: 'relative' }}>
