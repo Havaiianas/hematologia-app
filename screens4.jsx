@@ -827,52 +827,45 @@ function CommunityScreenV2() {
   const [secao,       setSecao]       = React.useState('trending');
 
   // Carrega posts do backend ao montar
-  React.useEffect(() => {
-    const carregar = async () => {
-      setCarregando(true);
-      try {
-        const user = (() => { try { return JSON.parse(localStorage.getItem('hema_user') || '{}'); } catch { return {}; } })();
-        const uid = user?.id || user?.email || '';
-        const r = await fetch(`${window.HemaAPI.base}/community/posts?limit=30&usuario_id=${encodeURIComponent(uid)}`);
-        if (r.ok) {
-          const d = await r.json();
-          const normalizados = (d.posts || d).map(p => ({
-            id:         p.id,
-            seed:       Math.floor(Math.random() * 99) + 1,
-            author:     p.autor_nome || 'Usuário',
-            spec:       p.autor_crbio || 'Biomédico',
-            initials:   (p.autor_nome || 'U').split(' ').map(w => w[0]).slice(0,2).join(''),
-            caption:    p.caption,
-            tags:       p.tags || [],
-            ia:         p.ia_resumo || null,
-            confidence: p.confianca_pct || null,
-            reactions: {
-              scope: { n: p.total_reacoes || 0, ativo: p.minha_reacao === 'scope' },
-              alert: { n: 0, ativo: p.minha_reacao === 'alert' },
-              agree: { n: 0, ativo: p.minha_reacao === 'agree' },
-            },
-            comments:   p.total_comentarios || 0,
-            trending:   p.trending || false,
-            imagem_url: p.imagem_url || null,
-            comentarios: (p.comentarios || []).map(cm => ({
-              id:       cm.id,
-              author:   cm.author,
-              initials: cm.initials,
-              spec:     cm.spec,
-              texto:    cm.texto,
-              time:     cm.time,
-              respostas: [],
-            })),
-          }));
-          setPosts(normalizados);
-        }
-      } catch {
-        setPosts([]);
+  const normalizar = (p) => ({
+    id:         p.id,
+    seed:       Math.abs((p.id || '').charCodeAt(0) * 7) % 50 + 1,
+    author:     p.autor_nome || 'Usuário',
+    spec:       p.autor_crbio || 'Biomédico',
+    initials:   (p.autor_nome || 'U').split(' ').map(w => w[0]).slice(0,2).join(''),
+    caption:    p.caption,
+    tags:       p.tags || [],
+    ia:         p.ia_resumo || null,
+    imagem_url: p.imagem_url || null,
+    imageURL:   p.imagem_url || null,
+    reactions: {
+      scope: { n: p.total_reacoes || 0, ativo: p.minha_reacao === 'scope' },
+      alert: { n: 0, ativo: p.minha_reacao === 'alert' },
+      agree: { n: 0, ativo: p.minha_reacao === 'agree' },
+    },
+    comments:    p.total_comentarios || 0,
+    trending:    p.trending || false,
+    comentarios: (p.comentarios || []).map(cm => ({
+      id: cm.id, author: cm.author, initials: cm.initials,
+      spec: cm.spec, texto: cm.texto, time: cm.time, respostas: [],
+    })),
+  });
+
+  const carregarPosts = React.useCallback(async () => {
+    setCarregando(true);
+    try {
+      const user = (() => { try { return JSON.parse(localStorage.getItem('hema_user') || '{}'); } catch { return {}; } })();
+      const uid = user?.id || user?.email || '';
+      const r = await fetch(`${window.HemaAPI.base}/community/posts?limit=30&secao=recente&usuario_id=${encodeURIComponent(uid)}`);
+      if (r.ok) {
+        const d = await r.json();
+        setPosts((d.posts || d).map(normalizar));
       }
-      setCarregando(false);
-    };
-    carregar();
+    } catch { setPosts([]); }
+    setCarregando(false);
   }, []);
+
+  React.useEffect(() => { carregarPosts(); }, []);
 
   const atualizar = (postAtualizado) => {
     setPosts(prev => prev.map(p => p.id === postAtualizado.id ? postAtualizado : p));
@@ -882,45 +875,9 @@ function CommunityScreenV2() {
     setPosts(prev => prev.filter(p => p.id !== postId));
   };
 
-  // Publica post no backend E recarrega lista
-  const publicar = async (novoP) => {
-    setPosts(prev => [novoP, ...prev]);
+  const publicar = async (_novoP) => {
     setNovoPost(false);
-    // Recarrega do banco após 1s para garantir consistência
-    setTimeout(async () => {
-      try {
-        const user = (() => { try { return JSON.parse(localStorage.getItem('hema_user') || '{}'); } catch { return {}; } })();
-        const uid = user?.id || user?.email || '';
-        const r = await fetch(`${window.HemaAPI.base}/community/posts?limit=30&usuario_id=${encodeURIComponent(uid)}`);
-        if (r.ok) {
-          const d = await r.json();
-          const normalizados = (d.posts || d).map((p, i) => ({
-            id:         p.id,
-            seed:       Math.floor(Math.random() * 99) + 1,
-            author:     p.autor_nome || 'Usuário',
-            spec:       p.autor_crbio || 'Biomédico',
-            initials:   (p.autor_nome || 'U').split(' ').map(w => w[0]).slice(0,2).join(''),
-            caption:    p.caption,
-            tags:       p.tags || [],
-            ia:         p.ia_resumo || null,
-            imagem_url: p.imagem_url || null,
-            imageURL:   p.imagem_url || null,
-            reactions: {
-              scope: { n: p.total_reacoes || 0, ativo: p.minha_reacao === 'scope' },
-              alert: { n: 0, ativo: p.minha_reacao === 'alert' },
-              agree: { n: 0, ativo: p.minha_reacao === 'agree' },
-            },
-            comments:    p.total_comentarios || 0,
-            trending:    p.trending || false,
-            comentarios: (p.comentarios || []).map(cm => ({
-              id: cm.id, author: cm.author, initials: cm.initials,
-              spec: cm.spec, texto: cm.texto, time: cm.time, respostas: [],
-            })),
-          }));
-          setPosts(normalizados);
-        }
-      } catch {}
-    }, 1000);
+    await carregarPosts();
   };
 
   const postsFiltrados = posts.filter(p => {
