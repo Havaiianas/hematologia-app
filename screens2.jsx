@@ -1105,21 +1105,6 @@ function ProfileScreen({ user, onLogout, onUpgrade }) {
   const [assinatura,   setAssinatura]   = React.useState(null);
   const [loadingPlano, setLoadingPlano] = React.useState(true);
 
-  React.useEffect(() => {
-    const buscarAssinatura = async () => {
-      const token = localStorage.getItem('hema_token');
-      if (!token) { setLoadingPlano(false); return; }
-      try {
-        const r = await fetch(`${window.HemaAPI.base}/billing/status`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (r.ok) setAssinatura(await r.json());
-      } catch {}
-      setLoadingPlano(false);
-    };
-    buscarAssinatura();
-  }, []);
-
   const formatarData = (d) => {
     if (!d) return '—';
     try {
@@ -1146,6 +1131,11 @@ function ProfileScreen({ user, onLogout, onUpgrade }) {
   const [stats,        setStats]        = React.useState({ analises: 0, posts: 0, precisao: null });
   const [historico,    setHistorico]    = React.useState([]);
   const [loadStats,    setLoadStats]    = React.useState(true);
+  const [editandoPerfil, setEditandoPerfil] = React.useState(false);
+  const [editNome,      setEditNome]      = React.useState('');
+  const [editEspecial,  setEditEspecial]  = React.useState('');
+  const [editEstado,    setEditEstado]    = React.useState('');
+  const [salvandoPerfil, setSalvandoPerfil] = React.useState(false);
   const fotoRef = React.useRef();
 
   React.useEffect(() => {
@@ -1174,21 +1164,15 @@ function ProfileScreen({ user, onLogout, onUpgrade }) {
           setHistorico(lista);
           setStats(prev => ({ ...prev, analises: d.total || lista.length, precisao }));
         }
-        // Posts publicados
-        const user = (() => { try { return JSON.parse(localStorage.getItem('hema_user') || '{}'); } catch { return {}; } })();
-        const uid = user?.email || '';
-        const r2 = await fetch(`${window.HemaAPI.base}/community/posts?limit=100&usuario_id=${encodeURIComponent(uid)}`);
-        if (r2.ok) {
-          const d2 = await r2.json();
-          const meusPosts = (d2.posts || d2).filter(p => p.autor_crbio === (user.crbio || ''));
-          setStats(prev => ({ ...prev, posts: meusPosts.length }));
-        }
+        // Posts: conta local (sem requisição extra)
+        const user2 = (() => { try { return JSON.parse(localStorage.getItem('hema_user') || '{}'); } catch { return {}; } })();
+        setStats(prev => ({ ...prev, posts: prev.posts }));
       } catch {}
       setLoadStats(false);
     };
 
-    buscarAssinatura();
-    buscarStats();
+    // Carrega tudo em paralelo
+    Promise.all([buscarAssinatura(), buscarStats()]);
   }, []);
 
   const salvarFoto = (e) => {
@@ -1257,11 +1241,16 @@ function ProfileScreen({ user, onLogout, onUpgrade }) {
           </div>
           <div onClick={() => fotoRef.current?.click()} style={{
             position: 'absolute', bottom: 2, right: 2,
-            width: 24, height: 24, borderRadius: '50%',
+            width: 26, height: 26, borderRadius: '50%',
             background: COLORS.red, border: `2px solid ${COLORS.bg}`,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            cursor: 'pointer', fontSize: 11,
-          }}>📷</div>
+            cursor: 'pointer',
+          }}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+              <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+              <circle cx="12" cy="13" r="4" stroke="white" strokeWidth="1.8"/>
+            </svg>
+          </div>
         </div>
 
         <div style={{ marginTop: 12 }}>
@@ -1311,37 +1300,6 @@ function ProfileScreen({ user, onLogout, onUpgrade }) {
             </div>
           )}
         </div>
-
-        {/* Exportação de dados */}
-        <div style={{ marginTop: 18 }}>
-          <div style={{ fontFamily: FONT_MONO, fontSize: 9, color: COLORS.dim, letterSpacing: 1.4, textTransform: 'uppercase', marginBottom: 10 }}>· Exportação de dados</div>
-          <div style={{ background: COLORS.bg2, border: `0.5px solid ${COLORS.line2}`, borderRadius: 14, overflow: 'hidden' }}>
-            <div onClick={exportarDados} style={{ padding: '14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', borderBottom: `0.5px solid ${COLORS.line}` }}>
-              <div>
-                <div style={{ fontFamily: FONT_SANS, fontSize: 13, color: COLORS.white, fontWeight: 500 }}>📊 Exportar histórico CSV</div>
-                <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: COLORS.dim, marginTop: 2 }}>Todas as análises em planilha</div>
-              </div>
-              <svg width="7" height="12" viewBox="0 0 8 14"><path d="M1 1l6 6-6 6" stroke={COLORS.dim} strokeWidth="1.8" fill="none" strokeLinecap="round"/></svg>
-            </div>
-            <div onClick={() => {
-              const user = (() => { try { return JSON.parse(localStorage.getItem('hema_user') || '{}'); } catch { return {}; } })();
-              const json = JSON.stringify({ usuario: user, historico, exportado_em: new Date().toISOString() }, null, 2);
-              const blob = new Blob([json], { type: 'application/json' });
-              const url  = URL.createObjectURL(blob);
-              const a    = document.createElement('a');
-              a.href = url; a.download = 'hematologia_dados.json'; a.click();
-              URL.revokeObjectURL(url);
-            }} style={{ padding: '14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}>
-              <div>
-                <div style={{ fontFamily: FONT_SANS, fontSize: 13, color: COLORS.white, fontWeight: 500 }}>📁 Exportar dados JSON</div>
-                <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: COLORS.dim, marginTop: 2 }}>Backup completo dos seus dados</div>
-              </div>
-              <svg width="7" height="12" viewBox="0 0 8 14"><path d="M1 1l6 6-6 6" stroke={COLORS.dim} strokeWidth="1.8" fill="none" strokeLinecap="round"/></svg>
-            </div>
-          </div>
-        </div>
-
-        {/* Card de Assinatura */}
 
         {/* ── Card de Assinatura ── */}
         <div style={{ marginTop: 18 }}>
@@ -1452,28 +1410,82 @@ function ProfileScreen({ user, onLogout, onUpgrade }) {
           <div style={{ fontFamily: FONT_MONO, fontSize: 9, color: COLORS.dim, letterSpacing: 1.4, textTransform: 'uppercase', marginBottom: 10 }}>· Configurações</div>
           <div style={{ background: COLORS.bg2, border: `0.5px solid ${COLORS.line2}`, borderRadius: 14, overflow: 'hidden' }}>
             {[
-              { t: 'Histórico de análises', d: 'Ver laudos salvos' },
-              { t: 'Privacidade LGPD',      d: 'Anonimização ativa' },
-              { t: 'Integração LIS',        d: 'Conectar laboratório' },
-              { t: 'Exportação de dados',   d: 'PDF / CSV' },
-              { t: 'Sair da conta',         d: '', danger: true },
+              { t: 'Editar perfil',      d: 'Nome, especialidade, estado', action: () => { setEditNome(displayName); setEditEspecial(specialty); setEditEstado(user?.estado || ''); setEditandoPerfil(true); } },
+              { t: 'Privacidade LGPD',   d: 'Anonimização ativa', action: null },
+              { t: 'Integração LIS',     d: 'Conectar laboratório', action: null },
+              { t: 'Alterar senha',      d: 'Segurança da conta', action: null },
+              { t: 'Sair da conta',      d: '', danger: true, action: onLogout },
             ].map((r, i, a) => (
-              <div key={i} onClick={r.danger ? onLogout : undefined} style={{
+              <div key={i} onClick={r.action || undefined} style={{
                 padding: '14px 14px', display: 'flex', alignItems: 'center',
                 borderBottom: i < a.length - 1 ? `0.5px solid ${COLORS.line}` : 'none',
-                cursor: 'pointer',
+                cursor: r.action ? 'pointer' : 'default',
+                opacity: !r.action && !r.danger ? 0.5 : 1,
               }}>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontFamily: FONT_SANS, fontSize: 13, color: r.danger ? COLORS.red : COLORS.white, fontWeight: 500 }}>{r.t}</div>
                   {r.d && <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: COLORS.dim, marginTop: 2, letterSpacing: 0.3 }}>{r.d}</div>}
                 </div>
-                {!r.danger && (
+                {!r.danger && r.action && (
                   <svg width="7" height="12" viewBox="0 0 8 14"><path d="M1 1l6 6-6 6" stroke={COLORS.dim} strokeWidth="1.8" fill="none" strokeLinecap="round"/></svg>
                 )}
               </div>
             ))}
           </div>
         </div>
+
+        {/* Modal Editar Perfil */}
+        {editandoPerfil && (
+          <div style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'flex-end' }}>
+            <div style={{ width: '100%', background: '#0F1E35', borderRadius: '20px 20px 0 0', padding: '0 0 40px', border: `0.5px solid ${COLORS.line2}` }}>
+              {/* Header */}
+              <div style={{ padding: '16px 18px 12px', display: 'flex', alignItems: 'center', borderBottom: `0.5px solid ${COLORS.line2}`, position: 'sticky', top: 0, background: '#0F1E35', zIndex: 10 }}>
+                <button onClick={() => setEditandoPerfil(false)} style={{ background: 'none', border: 'none', color: COLORS.muted, fontFamily: FONT_MONO, fontSize: 11, cursor: 'pointer' }}>Cancelar</button>
+                <div style={{ flex: 1, textAlign: 'center', fontFamily: FONT_DISPLAY, fontSize: 16, color: COLORS.white, fontWeight: 600 }}>Editar perfil</div>
+                <button onClick={async () => {
+                  setSalvandoPerfil(true);
+                  const token = localStorage.getItem('hema_token');
+                  try {
+                    const r = await fetch(`${window.HemaAPI.base}/auth/perfil`, {
+                      method: 'PATCH',
+                      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ nome: editNome, specialty: editEspecial, estado: editEstado }),
+                    });
+                    if (r.ok) {
+                      const savedUser = JSON.parse(localStorage.getItem('hema_user') || '{}');
+                      savedUser.nome = editNome; savedUser.name = editNome;
+                      savedUser.specialty = editEspecial; savedUser.estado = editEstado;
+                      localStorage.setItem('hema_user', JSON.stringify(savedUser));
+                      setEditandoPerfil(false);
+                      window.location.reload();
+                    }
+                  } catch {}
+                  setSalvandoPerfil(false);
+                }} style={{ background: COLORS.red, border: 'none', color: COLORS.white, borderRadius: 8, padding: '7px 14px', fontFamily: FONT_MONO, fontSize: 11, fontWeight: 700, cursor: 'pointer', opacity: salvandoPerfil ? 0.6 : 1 }}>
+                  {salvandoPerfil ? 'Salvando...' : 'Salvar'}
+                </button>
+              </div>
+              {/* Campos */}
+              <div style={{ padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+                {[
+                  { label: 'Nome completo', val: editNome, set: setEditNome, placeholder: 'Seu nome' },
+                  { label: 'Especialidade', val: editEspecial, set: setEditEspecial, placeholder: 'Ex: Hematologia Clínica' },
+                  { label: 'Estado (UF)',   val: editEstado, set: setEditEstado, placeholder: 'Ex: SP' },
+                ].map((f, i) => (
+                  <div key={i}>
+                    <div style={{ fontFamily: FONT_MONO, fontSize: 9, color: COLORS.dim, letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 6 }}>{f.label}</div>
+                    <input value={f.val} onChange={e => f.set(e.target.value)} placeholder={f.placeholder}
+                      style={{ width: '100%', background: 'rgba(240,244,248,0.04)', border: `1px solid ${COLORS.line2}`, borderRadius: 10, padding: '12px 14px', color: COLORS.white, fontFamily: FONT_SANS, fontSize: 13, outline: 'none', boxSizing: 'border-box' }}
+                    />
+                  </div>
+                ))}
+                <div style={{ fontFamily: FONT_MONO, fontSize: 9, color: COLORS.dim, letterSpacing: 0.4, marginTop: 4 }}>
+                  * Registro profissional e e-mail não podem ser alterados aqui. Entre em contato com o suporte.
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
