@@ -96,7 +96,8 @@ function Comentario({ c, onResponder, postId, onComentarioAtualizado }) {
   const getToken = () => localStorage.getItem('hema_token') || null;
   const authH = () => { const t = getToken(); return t ? { 'Authorization': `Bearer ${t}`, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' }; };
 
-  const isOwner = c.author === currentUser.nome || c.author === currentUser.name || c.author === 'Você' || c.spec?.includes(currentUser.crbio);
+  const isUUID = (id) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(id));
+  const isOwner = (c.author === currentUser.nome || c.author === currentUser.name || c.author === 'Você' || c.spec?.includes(currentUser.crbio)) && isUUID(c.id);
 
   const salvarEdicao = async () => {
     if (!editTexto.trim()) return;
