@@ -1194,10 +1194,21 @@ function ProfileScreen({ user, onLogout, onUpgrade }) {
     const f = e.target.files?.[0];
     if (!f) return;
     const reader = new FileReader();
-    reader.onload = () => {
+    reader.onload = async () => {
       const b64 = reader.result;
       setFoto(b64);
       localStorage.setItem('hema_foto', b64);
+      // Salva no banco para outros usuários verem
+      const token = localStorage.getItem('hema_token');
+      if (token) {
+        try {
+          await fetch(`${window.HemaAPI.base}/auth/avatar`, {
+            method: 'PATCH',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ avatar_url: b64 }),
+          });
+        } catch {}
+      }
     };
     reader.readAsDataURL(f);
   };
