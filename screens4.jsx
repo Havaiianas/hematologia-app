@@ -86,8 +86,33 @@ function ReactionBtn({ icon, count, ativo, color, onClick }) {
 }
 
 // ── Comentário individual ──
-function Comentario({ c, onResponder }) {
-  const [expandido, setExpandido] = React.useState(false);
+function Comentario({ c, onResponder, postId, onComentarioAtualizado }) {
+  const [expandido,    setExpandido]    = React.useState(false);
+  const [editando,     setEditando]     = React.useState(false);
+  const [editTexto,    setEditTexto]    = React.useState(c.texto);
+  const [salvando,     setSalvando]     = React.useState(false);
+
+  const currentUser = (() => { try { return JSON.parse(localStorage.getItem('hema_user') || '{}'); } catch { return {}; } })();
+  const getToken = () => localStorage.getItem('hema_token') || null;
+  const authH = () => { const t = getToken(); return t ? { 'Authorization': `Bearer ${t}`, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' }; };
+
+  const isOwner = c.author === currentUser.nome || c.author === currentUser.name || c.author === 'Você' || c.spec?.includes(currentUser.crbio);
+
+  const salvarEdicao = async () => {
+    if (!editTexto.trim()) return;
+    setSalvando(true);
+    try {
+      await fetch(`${window.HemaAPI.base}/community/comentarios/${c.id}`, {
+        method: 'PATCH',
+        headers: authH(),
+        body: JSON.stringify({ texto: editTexto }),
+      });
+      if (onComentarioAtualizado) onComentarioAtualizado(c.id, editTexto);
+      setEditando(false);
+    } catch {}
+    setSalvando(false);
+  };
+
   return (
     <div style={{ animation: 'fadeUp 250ms ease-out' }}>
       <div style={{ display: 'flex', gap: 8, padding: '10px 14px' }}>
@@ -98,15 +123,40 @@ function Comentario({ c, onResponder }) {
             <span style={{ fontFamily: FONT_MONO, fontSize: 9, color: COLORS.dim }}>{c.spec}</span>
             <span style={{ fontFamily: FONT_MONO, fontSize: 9, color: COLORS.dim, marginLeft: 'auto' }}>{c.time}</span>
           </div>
-          <div style={{ fontFamily: FONT_SANS, fontSize: 12, color: COLORS.muted, marginTop: 4, lineHeight: 1.5 }}>
-            {c.texto}
-          </div>
+          {editando ? (
+            <div style={{ marginTop: 6 }}>
+              <textarea
+                value={editTexto}
+                onChange={e => setEditTexto(e.target.value)}
+                style={{
+                  width: '100%', background: 'rgba(240,244,248,0.04)',
+                  border: `1px solid ${COLORS.line2}`, borderRadius: 8,
+                  padding: '7px 10px', color: COLORS.white,
+                  fontFamily: FONT_SANS, fontSize: 12, lineHeight: 1.5,
+                  resize: 'none', outline: 'none', boxSizing: 'border-box', minHeight: 60,
+                }}
+              />
+              <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
+                <span onClick={() => setEditando(false)} style={{ fontFamily: FONT_MONO, fontSize: 9, color: COLORS.dim, cursor: 'pointer' }}>Cancelar</span>
+                <span onClick={salvarEdicao} style={{ fontFamily: FONT_MONO, fontSize: 9, color: COLORS.red, cursor: 'pointer' }}>{salvando ? 'Salvando...' : 'Salvar'}</span>
+              </div>
+            </div>
+          ) : (
+            <div style={{ fontFamily: FONT_SANS, fontSize: 12, color: COLORS.muted, marginTop: 4, lineHeight: 1.5 }}>
+              {c.texto}
+            </div>
+          )}
           <div style={{ display: 'flex', gap: 14, marginTop: 6 }}>
             <span onClick={() => onResponder(c)} style={{
               fontFamily: FONT_MONO, fontSize: 9, color: COLORS.dim,
               letterSpacing: 0.4, cursor: 'pointer',
-              transition: 'color 150ms',
             }}>↩ Responder</span>
+            {isOwner && !editando && (
+              <span onClick={() => setEditando(true)} style={{
+                fontFamily: FONT_MONO, fontSize: 9, color: COLORS.dim,
+                letterSpacing: 0.4, cursor: 'pointer',
+              }}>✏️ Editar</span>
+            )}
             {c.respostas?.length > 0 && (
               <span onClick={() => setExpandido(!expandido)} style={{
                 fontFamily: FONT_MONO, fontSize: 9, color: '#5B9ED1', letterSpacing: 0.4, cursor: 'pointer',
@@ -206,10 +256,21 @@ function PostCard({ post, onUpdate, onAbrir, onDelete }) {
   };
 
   const toggleReaction = async (tipo) => {
-    // Atualiza UI imediatamente (otimista)
-    const r = { ...post.reactions };
-    const era = r[tipo]?.ativo;
-    r[tipo] = { n: (r[tipo]?.n || 0) + (era ? -1 : 1), ativo: !era };
+    // Atualiza UI imediatamente — desativa outros tipos (só 1 reação por vez)
+    const r = {
+      scope: { ...post.reactions.scope },
+      alert: { ...post.reactions.alert },
+      agree: { ...post.reactions.agree },
+    };
+    const eraAtivo = r[tipo]?.ativo;
+    // Remove reação ativa de outros tipos
+    Object.keys(r).forEach(k => {
+      if (k !== tipo && r[k].ativo) {
+        r[k] = { n: Math.max(0, (r[k].n || 1) - 1), ativo: false };
+      }
+    });
+    // Toggle o tipo clicado
+    r[tipo] = { n: (r[tipo]?.n || 0) + (eraAtivo ? -1 : 1), ativo: !eraAtivo };
     onUpdate({ ...post, reactions: r });
 
     // Salva no backend
@@ -228,16 +289,26 @@ function PostCard({ post, onUpdate, onAbrir, onDelete }) {
     const agora = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 
     if (respondendoA) {
-      const novosComentarios = post.comentarios.map(c => {
-        if (c.id === respondendoA.id) {
-          return { ...c, respostas: [...(c.respostas || []), {
-            id: Date.now(), author: 'Você', spec: 'Usuário', initials: 'VC', texto: txt, time: agora,
-          }]};
+      // Salva resposta no banco como comentário com parent_id
+      const novaResposta = {
+        id: Date.now(), author: 'Você', spec: 'Usuário', initials: 'VC', texto: txt, time: agora,
+      };
+      const novosComentarios = post.comentarios.map(cm => {
+        if (cm.id === respondendoA.id) {
+          return { ...cm, respostas: [...(cm.respostas || []), novaResposta] };
         }
-        return c;
+        return cm;
       });
       onUpdate({ ...post, comentarios: novosComentarios });
       setRespondendoA(null);
+      // Salva no backend
+      try {
+        await fetch(`${window.HemaAPI.base}/community/posts/${post.id}/comentarios`, {
+          method: 'POST',
+          headers: authHeaders(),
+          body: JSON.stringify({ texto: txt, parent_id: String(respondendoA.id) }),
+        });
+      } catch {}
     } else {
       // Atualiza UI imediatamente
       const novoC = {
@@ -435,7 +506,12 @@ function PostCard({ post, onUpdate, onAbrir, onDelete }) {
           )}
           {post.comentarios.map(c => (
             <div key={c.id}>
-              <Comentario c={c} onResponder={(c) => {
+              <Comentario c={c} postId={post.id}
+                onComentarioAtualizado={(cId, novoTexto) => {
+                  const novos = post.comentarios.map(cm => cm.id === cId ? {...cm, texto: novoTexto} : cm);
+                  onUpdate({...post, comentarios: novos});
+                }}
+                onResponder={(c) => {
                 setRespondendoA(c);
                 setNovoComentario(`@${c.author.split(' ')[0]} `);
                 setTimeout(() => inputRef.current?.focus(), 100);
@@ -499,37 +575,90 @@ function PostCard({ post, onUpdate, onAbrir, onDelete }) {
         </div>
       )}
 
-      {/* Modal de edição */}
-      {editando && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'flex-end' }}>
-          <div style={{ width: '100%', background: '#0F1E35', borderRadius: '20px 20px 0 0', padding: '20px 18px 40px', border: `0.5px solid ${COLORS.line2}` }}>
-            <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: COLORS.dim, letterSpacing: 1, marginBottom: 12, textTransform: 'uppercase' }}>· Editar post</div>
-            <textarea
-              value={editCaption}
-              onChange={e => setEditCaption(e.target.value)}
-              style={{
-                width: '100%', minHeight: 100, background: 'rgba(240,244,248,0.04)',
-                border: `1px solid ${COLORS.line2}`, borderRadius: 10, padding: '10px 12px',
-                color: COLORS.white, fontFamily: FONT_SANS, fontSize: 13, lineHeight: 1.5,
-                resize: 'none', outline: 'none', boxSizing: 'border-box',
-              }}
-            />
-            <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
-              <button onClick={() => setEditando(false)} style={{
-                flex: 1, background: 'transparent', border: `0.5px solid ${COLORS.line2}`,
-                color: COLORS.muted, borderRadius: 10, padding: '12px',
-                fontFamily: FONT_MONO, fontSize: 10, cursor: 'pointer',
-              }}>Cancelar</button>
-              <button onClick={salvarEdicao} disabled={salvandoEdit} style={{
-                flex: 2, background: COLORS.red, border: 'none',
-                color: COLORS.white, borderRadius: 10, padding: '12px',
-                fontFamily: FONT_MONO, fontSize: 10, fontWeight: 700,
-                letterSpacing: 1, cursor: 'pointer', opacity: salvandoEdit ? 0.6 : 1,
-              }}>{salvandoEdit ? 'Salvando...' : 'Salvar edição'}</button>
+      {/* Modal de edição completo */}
+      {editando && (() => {
+        const fileEditRef = React.createRef();
+        return (
+          <div style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'flex-end' }}>
+            <div style={{ width: '100%', background: '#0F1E35', borderRadius: '20px 20px 0 0', padding: '0 0 40px', border: `0.5px solid ${COLORS.line2}`, maxHeight: '90vh', overflowY: 'auto' }}>
+              {/* Header */}
+              <div style={{ padding: '16px 18px 12px', display: 'flex', alignItems: 'center', borderBottom: `0.5px solid ${COLORS.line2}`, position: 'sticky', top: 0, background: '#0F1E35', zIndex: 10 }}>
+                <button onClick={() => setEditando(false)} style={{ background: 'none', border: 'none', color: COLORS.muted, fontFamily: FONT_MONO, fontSize: 11, cursor: 'pointer' }}>Cancelar</button>
+                <div style={{ flex: 1, textAlign: 'center', fontFamily: FONT_DISPLAY, fontSize: 16, color: COLORS.white, fontWeight: 600 }}>Editar post</div>
+                <button onClick={salvarEdicao} disabled={salvandoEdit} style={{
+                  background: COLORS.red, border: 'none', color: COLORS.white,
+                  borderRadius: 8, padding: '7px 14px', fontFamily: FONT_MONO,
+                  fontSize: 11, fontWeight: 700, cursor: 'pointer', opacity: salvandoEdit ? 0.6 : 1,
+                }}>{salvandoEdit ? 'Salvando...' : 'Salvar'}</button>
+              </div>
+              {/* Imagem atual */}
+              <div style={{ padding: '14px 18px 0' }}>
+                <div style={{ fontFamily: FONT_MONO, fontSize: 9, color: COLORS.dim, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 8 }}>· Imagem</div>
+                {(editCaption || post.imagem_url) && post.imagem_url ? (
+                  <div style={{ position: 'relative', borderRadius: 10, overflow: 'hidden', height: 150 }}>
+                    <img src={post.imagem_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    <div style={{ position: 'absolute', top: 8, right: 8, display: 'flex', gap: 8 }}>
+                      <button onClick={() => {
+                        onUpdate({ ...post, imagem_url: null, imageURL: null });
+                        fetch(`${window.HemaAPI.base}/community/posts/${post.id}`, {
+                          method: 'PATCH', headers: authHeaders(),
+                          body: JSON.stringify({ imagem_url: null }),
+                        }).catch(() => {});
+                      }} style={{
+                        background: 'rgba(192,57,43,0.9)', border: 'none', borderRadius: 6,
+                        color: 'white', fontFamily: FONT_MONO, fontSize: 9, padding: '5px 10px', cursor: 'pointer',
+                      }}>🗑 Remover foto</button>
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <input type="file" accept="image/*" ref={fileEditRef} style={{ display: 'none' }}
+                      onChange={async (e) => {
+                        const f = e.target.files?.[0];
+                        if (!f) return;
+                        const reader = new FileReader();
+                        reader.onload = async () => {
+                          const b64 = reader.result;
+                          onUpdate({ ...post, imagem_url: b64, imageURL: b64 });
+                          try {
+                            await fetch(`${window.HemaAPI.base}/community/posts/${post.id}`, {
+                              method: 'PATCH', headers: authHeaders(),
+                              body: JSON.stringify({ imagem_url: b64 }),
+                            });
+                          } catch {}
+                        };
+                        reader.readAsDataURL(f);
+                      }}
+                    />
+                    <div onClick={() => fileEditRef.current?.click()} style={{
+                      height: 80, background: 'rgba(240,244,248,0.03)',
+                      border: `1px dashed ${COLORS.line2}`, borderRadius: 10,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      cursor: 'pointer', gap: 8,
+                    }}>
+                      <span style={{ fontFamily: FONT_MONO, fontSize: 10, color: COLORS.dim }}>📷 Adicionar foto</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+              {/* Texto */}
+              <div style={{ padding: '14px 18px 0' }}>
+                <div style={{ fontFamily: FONT_MONO, fontSize: 9, color: COLORS.dim, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 8 }}>· Texto do post</div>
+                <textarea
+                  value={editCaption}
+                  onChange={e => setEditCaption(e.target.value)}
+                  style={{
+                    width: '100%', minHeight: 100, background: 'rgba(240,244,248,0.04)',
+                    border: `1px solid ${COLORS.line2}`, borderRadius: 10, padding: '10px 12px',
+                    color: COLORS.white, fontFamily: FONT_SANS, fontSize: 13, lineHeight: 1.5,
+                    resize: 'none', outline: 'none', boxSizing: 'border-box',
+                  }}
+                />
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }
