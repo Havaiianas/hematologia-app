@@ -86,7 +86,7 @@ function ReactionBtn({ icon, count, ativo, color, onClick }) {
 }
 
 // ── Comentário individual ──
-function Comentario({ c, onResponder, postId, onComentarioAtualizado }) {
+function Comentario({ c, onResponder, postId, onComentarioAtualizado, onComentarioDeletado }) {
   const [expandido,    setExpandido]    = React.useState(false);
   const [editando,     setEditando]     = React.useState(false);
   const [editTexto,    setEditTexto]    = React.useState(c.texto);
@@ -112,6 +112,17 @@ function Comentario({ c, onResponder, postId, onComentarioAtualizado }) {
       setEditando(false);
     } catch {}
     setSalvando(false);
+  };
+
+  const deletarComentario = async () => {
+    if (!confirm('Excluir este comentário?')) return;
+    try {
+      await fetch(`${window.HemaAPI.base}/community/comentarios/${c.id}`, {
+        method: 'DELETE',
+        headers: authH(),
+      });
+    } catch {}
+    if (onComentarioDeletado) onComentarioDeletado(c.id);
   };
 
   return (
@@ -157,6 +168,12 @@ function Comentario({ c, onResponder, postId, onComentarioAtualizado }) {
                 fontFamily: FONT_MONO, fontSize: 9, color: COLORS.dim,
                 letterSpacing: 0.4, cursor: 'pointer',
               }}>✏️ Editar</span>
+            )}
+            {isOwner && !editando && (
+              <span onClick={deletarComentario} style={{
+                fontFamily: FONT_MONO, fontSize: 9, color: COLORS.red,
+                letterSpacing: 0.4, cursor: 'pointer',
+              }}>🗑 Excluir</span>
             )}
             {c.respostas?.length > 0 && (
               <span onClick={() => setExpandido(!expandido)} style={{
@@ -511,6 +528,10 @@ function PostCard({ post, onUpdate, onAbrir, onDelete }) {
                 onComentarioAtualizado={(cId, novoTexto) => {
                   const novos = post.comentarios.map(cm => cm.id === cId ? {...cm, texto: novoTexto} : cm);
                   onUpdate({...post, comentarios: novos});
+                }}
+                onComentarioDeletado={(cId) => {
+                  const novos = post.comentarios.filter(cm => cm.id !== cId);
+                  onUpdate({...post, comentarios: novos, comments: Math.max(0, (post.comments || 1) - 1)});
                 }}
                 onResponder={(c) => {
                 setRespondendoA(c);
