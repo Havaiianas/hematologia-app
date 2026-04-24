@@ -57,7 +57,17 @@ const POSTS_INICIAIS = [
 // COMPONENTES AUXILIARES
 // ══════════════════════════════════════════════════
 
-function Avatar({ initials, size = 34, gradient = `linear-gradient(135deg, ${COLORS.blue}, ${COLORS.red})` }) {
+function Avatar({ initials, size = 34, gradient = `linear-gradient(135deg, ${COLORS.blue}, ${COLORS.red})`, src = null }) {
+  if (src) {
+    return (
+      <div style={{
+        width: size, height: size, borderRadius: '50%', flexShrink: 0,
+        overflow: 'hidden', border: `1px solid rgba(255,255,255,0.1)`,
+      }}>
+        <img src={src} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+      </div>
+    );
+  }
   return (
     <div style={{
       width: size, height: size, borderRadius: '50%', flexShrink: 0,
@@ -128,7 +138,7 @@ function Comentario({ c, onResponder, postId, onComentarioAtualizado, onComentar
   return (
     <div style={{ animation: 'fadeUp 250ms ease-out' }}>
       <div style={{ display: 'flex', gap: 8, padding: '10px 14px' }}>
-        <Avatar initials={c.initials} size={28} />
+        <Avatar initials={c.initials} size={28} src={c.avatar} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, flexWrap: 'wrap' }}>
             <span style={{ fontFamily: FONT_SANS, fontSize: 12, color: COLORS.white, fontWeight: 600 }}>{c.author}</span>
@@ -193,7 +203,7 @@ function Comentario({ c, onResponder, postId, onComentarioAtualizado, onComentar
           background: 'rgba(240,244,248,0.02)',
           borderLeft: `2px solid ${COLORS.line2}`, marginLeft: 36,
         }}>
-          <Avatar initials={r.initials} size={24} />
+          <Avatar initials={r.initials} size={24} src={r.avatar} />
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
               <span style={{ fontFamily: FONT_SANS, fontSize: 11, color: COLORS.white, fontWeight: 600 }}>{r.author}</span>
@@ -359,7 +369,7 @@ function PostCard({ post, onUpdate, onAbrir, onDelete }) {
     }}>
       {/* Cabeçalho do autor */}
       <div style={{ padding: '12px 14px 10px', display: 'flex', alignItems: 'center', gap: 10 }}>
-        <Avatar initials={post.initials} />
+        <Avatar initials={post.initials} src={post.avatar} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontFamily: FONT_SANS, fontSize: 12, color: COLORS.white, fontWeight: 600 }}>{post.author}</div>
           <div style={{ fontFamily: FONT_MONO, fontSize: 9, color: COLORS.dim, marginTop: 1, letterSpacing: 0.3 }}>{post.spec}</div>
@@ -984,6 +994,7 @@ function CommunityScreenV2() {
     author:     p.autor_nome || 'Usuário',
     spec:       p.autor_crbio || 'Biomédico',
     initials:   (p.autor_nome || 'U').split(' ').map(w => w[0]).slice(0,2).join(''),
+    avatar:     p.autor_avatar || null,
     caption:    p.caption,
     tags:       p.tags || [],
     ia:         p.ia_resumo || null,
