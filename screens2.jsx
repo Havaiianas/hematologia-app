@@ -1142,8 +1142,94 @@ function ProfileScreen({ user, onLogout, onUpgrade }) {
     return { label: s, cor: COLORS.muted };
   };
 
+  const [foto,         setFoto]         = React.useState(localStorage.getItem('hema_foto') || null);
+  const [stats,        setStats]        = React.useState({ analises: 0, posts: 0, precisao: null });
+  const [historico,    setHistorico]    = React.useState([]);
+  const [loadStats,    setLoadStats]    = React.useState(true);
+  const fotoRef = React.useRef();
+
+  React.useEffect(() => {
+    const token = localStorage.getItem('hema_token');
+
+    const buscarAssinatura = async () => {
+      if (!token) { setLoadingPlano(false); return; }
+      try {
+        const r = await fetch(`${window.HemaAPI.base}/billing/status`, { headers: { 'Authorization': `Bearer ${token}` } });
+        if (r.ok) setAssinatura(await r.json());
+      } catch {}
+      setLoadingPlano(false);
+    };
+
+    const buscarStats = async () => {
+      if (!token) { setLoadStats(false); return; }
+      try {
+        // Análises do banco
+        const r1 = await fetch(`${window.HemaAPI.base}/analysis/historico?limit=50`, { headers: { 'Authorization': `Bearer ${token}` } });
+        if (r1.ok) {
+          const d = await r1.json();
+          const lista = d.analises || [];
+          const precisao = lista.length > 0
+            ? Math.round(lista.reduce((acc, a) => acc + (a.confianca_pct || 0), 0) / lista.length)
+            : null;
+          setHistorico(lista);
+          setStats(prev => ({ ...prev, analises: d.total || lista.length, precisao }));
+        }
+        // Posts publicados
+        const user = (() => { try { return JSON.parse(localStorage.getItem('hema_user') || '{}'); } catch { return {}; } })();
+        const uid = user?.email || '';
+        const r2 = await fetch(`${window.HemaAPI.base}/community/posts?limit=100&usuario_id=${encodeURIComponent(uid)}`);
+        if (r2.ok) {
+          const d2 = await r2.json();
+          const meusPosts = (d2.posts || d2).filter(p => p.autor_crbio === (user.crbio || ''));
+          setStats(prev => ({ ...prev, posts: meusPosts.length }));
+        }
+      } catch {}
+      setLoadStats(false);
+    };
+
+    buscarAssinatura();
+    buscarStats();
+  }, []);
+
+  const salvarFoto = (e) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const b64 = reader.result;
+      setFoto(b64);
+      localStorage.setItem('hema_foto', b64);
+    };
+    reader.readAsDataURL(f);
+  };
+
+  const exportarDados = async () => {
+    const token = localStorage.getItem('hema_token');
+    const user  = (() => { try { return JSON.parse(localStorage.getItem('hema_user') || '{}'); } catch { return {}; } })();
+    const linhas = [
+      ['ID', 'Data', 'Total Células', 'Blastos %', 'Confiança %', 'Suspeita', 'Células Atípicas'],
+      ...historico.map(a => [
+        a.id,
+        a.criado_em ? new Date(a.criado_em).toLocaleString('pt-BR') : '',
+        a.total_celulas,
+        a.blastos_pct,
+        a.confianca_pct,
+        a.suspeita_diag,
+        a.celulas_atipicas ? 'Sim' : 'Não',
+      ])
+    ];
+    const csv = linhas.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = `hematologia_${user.crbio?.replace(' ', '_') || 'dados'}_${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
-    <div style={{ paddingBottom: 120, minHeight: '100%', position: 'relative' }}>
+    <div style={{ paddingBottom: 140, minHeight: '100%', position: 'relative' }}>
       <LabGrid opacity={0.035} />
       <div style={{ position: 'relative', height: 140 }}>
         <div style={{ position: 'absolute', inset: 0 }}>
@@ -1153,22 +1239,109 @@ function ProfileScreen({ user, onLogout, onUpgrade }) {
       </div>
       <div style={{ padding: '0 20px', marginTop: -50, position: 'relative' }}>
 
-        {/* Avatar + nome */}
-        <div style={{ width: 90, height: 90, borderRadius: '50%', background: `linear-gradient(135deg, ${COLORS.red}, #6A1A12)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: FONT_DISPLAY, fontSize: 32, color: COLORS.white, border: `3px solid ${COLORS.bg}`, boxShadow: `0 0 20px ${COLORS.red}40` }}>{initials}</div>
+        {/* Avatar com foto + botão editar */}
+        <div style={{ position: 'relative', width: 90, height: 90 }}>
+          <input type="file" accept="image/*" ref={fotoRef} style={{ display: 'none' }} onChange={salvarFoto} />
+          <div onClick={() => fotoRef.current?.click()} style={{
+            width: 90, height: 90, borderRadius: '50%', cursor: 'pointer',
+            background: foto ? 'transparent' : `linear-gradient(135deg, ${COLORS.red}, #6A1A12)`,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontFamily: FONT_DISPLAY, fontSize: 32, color: COLORS.white,
+            border: `3px solid ${COLORS.bg}`, boxShadow: `0 0 20px ${COLORS.red}40`,
+            overflow: 'hidden',
+          }}>
+            {foto
+              ? <img src={foto} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              : initials
+            }
+          </div>
+          <div onClick={() => fotoRef.current?.click()} style={{
+            position: 'absolute', bottom: 2, right: 2,
+            width: 24, height: 24, borderRadius: '50%',
+            background: COLORS.red, border: `2px solid ${COLORS.bg}`,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: 'pointer', fontSize: 11,
+          }}>📷</div>
+        </div>
+
         <div style={{ marginTop: 12 }}>
           <div style={{ fontFamily: FONT_DISPLAY, fontSize: 24, color: COLORS.white, fontWeight: 600, letterSpacing: -0.3 }}>{displayName}</div>
           <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: COLORS.muted, letterSpacing: 0.8, marginTop: 3 }}>{specialty.toUpperCase()} · {crbio}</div>
         </div>
 
-        {/* Stats */}
+        {/* Stats do banco */}
         <div style={{ marginTop: 16, display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', background: COLORS.bg2, border: `0.5px solid ${COLORS.line2}`, borderRadius: 14, overflow: 'hidden' }}>
-          {[{ n: user?.total_analises || '0', l: 'Análises' }, { n: '0', l: 'Publicados' }, { n: user?.precisao_pct ? `${user.precisao_pct}%` : '—', l: 'Precisão' }].map((s, i) => (
+          {[
+            { n: loadStats ? '...' : String(stats.analises), l: 'Análises' },
+            { n: loadStats ? '...' : String(stats.posts),    l: 'Publicados' },
+            { n: loadStats ? '...' : stats.precisao ? `${stats.precisao}%` : '—', l: 'Precisão' },
+          ].map((s, i) => (
             <div key={i} style={{ padding: '14px 10px', textAlign: 'center', borderRight: i < 2 ? `0.5px solid ${COLORS.line}` : 'none' }}>
               <div style={{ fontFamily: FONT_DISPLAY, fontSize: 22, color: COLORS.white, fontWeight: 700 }}>{s.n}</div>
               <div style={{ fontFamily: FONT_MONO, fontSize: 9, color: COLORS.dim, letterSpacing: 0.8, textTransform: 'uppercase', marginTop: 2 }}>{s.l}</div>
             </div>
           ))}
         </div>
+
+        {/* Histórico de análises */}
+        <div style={{ marginTop: 18 }}>
+          <div style={{ fontFamily: FONT_MONO, fontSize: 9, color: COLORS.dim, letterSpacing: 1.4, textTransform: 'uppercase', marginBottom: 10 }}>· Histórico de análises</div>
+          {historico.length === 0 && !loadStats ? (
+            <div style={{ background: COLORS.bg2, border: `0.5px solid ${COLORS.line2}`, borderRadius: 14, padding: '16px', textAlign: 'center' }}>
+              <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: COLORS.dim }}>Nenhuma análise realizada ainda</div>
+            </div>
+          ) : (
+            <div style={{ background: COLORS.bg2, border: `0.5px solid ${COLORS.line2}`, borderRadius: 14, overflow: 'hidden' }}>
+              {historico.slice(0, 8).map((a, i) => {
+                const status = a.celulas_atipicas ? 'alert' : a.blastos_pct > 0 ? 'review' : 'normal';
+                const cores  = { alert: COLORS.red, review: COLORS.amber, normal: COLORS.green };
+                const labels = { alert: 'Atípico', review: `Blastos ${a.blastos_pct}%`, normal: 'Normal' };
+                const data   = a.criado_em ? new Date(a.criado_em).toLocaleDateString('pt-BR', { day:'2-digit', month:'short' }) : '—';
+                return (
+                  <div key={a.id} style={{ padding: '12px 14px', borderBottom: i < historico.slice(0,8).length - 1 ? `0.5px solid ${COLORS.line}` : 'none', display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: cores[status], flexShrink: 0 }} />
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontFamily: FONT_SANS, fontSize: 12, color: COLORS.white, fontWeight: 500 }}>{labels[status]}</div>
+                      <div style={{ fontFamily: FONT_MONO, fontSize: 9, color: COLORS.dim, marginTop: 2 }}>{a.total_celulas} células · Confiança {a.confianca_pct}%</div>
+                    </div>
+                    <div style={{ fontFamily: FONT_MONO, fontSize: 9, color: COLORS.dim }}>{data}</div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Exportação de dados */}
+        <div style={{ marginTop: 18 }}>
+          <div style={{ fontFamily: FONT_MONO, fontSize: 9, color: COLORS.dim, letterSpacing: 1.4, textTransform: 'uppercase', marginBottom: 10 }}>· Exportação de dados</div>
+          <div style={{ background: COLORS.bg2, border: `0.5px solid ${COLORS.line2}`, borderRadius: 14, overflow: 'hidden' }}>
+            <div onClick={exportarDados} style={{ padding: '14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', borderBottom: `0.5px solid ${COLORS.line}` }}>
+              <div>
+                <div style={{ fontFamily: FONT_SANS, fontSize: 13, color: COLORS.white, fontWeight: 500 }}>📊 Exportar histórico CSV</div>
+                <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: COLORS.dim, marginTop: 2 }}>Todas as análises em planilha</div>
+              </div>
+              <svg width="7" height="12" viewBox="0 0 8 14"><path d="M1 1l6 6-6 6" stroke={COLORS.dim} strokeWidth="1.8" fill="none" strokeLinecap="round"/></svg>
+            </div>
+            <div onClick={() => {
+              const user = (() => { try { return JSON.parse(localStorage.getItem('hema_user') || '{}'); } catch { return {}; } })();
+              const json = JSON.stringify({ usuario: user, historico, exportado_em: new Date().toISOString() }, null, 2);
+              const blob = new Blob([json], { type: 'application/json' });
+              const url  = URL.createObjectURL(blob);
+              const a    = document.createElement('a');
+              a.href = url; a.download = 'hematologia_dados.json'; a.click();
+              URL.revokeObjectURL(url);
+            }} style={{ padding: '14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}>
+              <div>
+                <div style={{ fontFamily: FONT_SANS, fontSize: 13, color: COLORS.white, fontWeight: 500 }}>📁 Exportar dados JSON</div>
+                <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: COLORS.dim, marginTop: 2 }}>Backup completo dos seus dados</div>
+              </div>
+              <svg width="7" height="12" viewBox="0 0 8 14"><path d="M1 1l6 6-6 6" stroke={COLORS.dim} strokeWidth="1.8" fill="none" strokeLinecap="round"/></svg>
+            </div>
+          </div>
+        </div>
+
+        {/* Card de Assinatura */}
 
         {/* ── Card de Assinatura ── */}
         <div style={{ marginTop: 18 }}>
@@ -1305,5 +1478,4 @@ function ProfileScreen({ user, onLogout, onUpgrade }) {
     </div>
   );
 }
-
 window.HemaScreens2 = { AnalysisScreen, CommunityScreen, ChatScreen, ProfileScreen };
