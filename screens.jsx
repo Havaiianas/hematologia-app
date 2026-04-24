@@ -280,16 +280,16 @@ function ConteudoLGPD() {
 // LOGIN SCREEN
 // ──────────────────────────────────────────────────
 function LoginScreen({ onLogin, onCriarConta, onRecuperarSenha }) {
-  const [crbio,    setCrbio]    = React.useState('CRBM 12345');
-  const [email,    setEmail]    = React.useState('dr.silva@clinic.br');
-  const [password, setPassword] = React.useState('senha123');
+  const [crbio,    setCrbio]    = React.useState('');
+  const [email,    setEmail]    = React.useState('');
+  const [password, setPassword] = React.useState('');
   const [focus,    setFocus]    = React.useState(null);
   const [loading,  setLoading]  = React.useState(false);
   const [error,    setError]    = React.useState(null);
   const [termos,   setTermos]   = React.useState(false);
   const [modalDoc, setModalDoc] = React.useState(null); // null | 'termos' | 'lgpd'
 
-  const field = (label, val, setter, key, type = 'text') => (
+  const field = (label, val, setter, key, type = 'text', placeholder = '') => (
     <div>
       <div style={{
         fontFamily: FONT_MONO, fontSize: 9, letterSpacing: 1.4,
@@ -297,7 +297,8 @@ function LoginScreen({ onLogin, onCriarConta, onRecuperarSenha }) {
         textTransform: 'uppercase', marginBottom: 6, transition: 'color 180ms',
       }}>{label}</div>
       <input
-        type={type} value={val} onChange={e => { setter(e.target.value); setError(null); }}
+        type={type} value={val} placeholder={placeholder}
+        onChange={e => { setter(e.target.value); setError(null); }}
         onFocus={() => setFocus(key)} onBlur={() => setFocus(null)}
         style={{
           width: '100%', boxSizing: 'border-box',
@@ -395,9 +396,9 @@ function LoginScreen({ onLogin, onCriarConta, onRecuperarSenha }) {
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 8 }}>
-          {field('Registro profissional', crbio,    setCrbio,    'crbio')}
-          {field('E-mail',               email,    setEmail,    'email', 'email')}
-          {field('Senha',                password, setPassword, 'pass',  'password')}
+          {field('Registro profissional', crbio, setCrbio, 'crbio', 'text', 'Ex: CRBM6 1698 · CRM6 12345 · CF-RS 1234')}
+          {field('E-mail', email, setEmail, 'email', 'email', 'seu@email.com')}
+          {field('Senha', password, setPassword, 'pass', 'password', '••••••••')}
         </div>
 
         {/* Checkbox LGPD */}
