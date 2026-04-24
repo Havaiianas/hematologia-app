@@ -1501,10 +1501,7 @@ function ProfileScreen({ user, onLogout, onUpgrade }) {
             </div>
           </div>
         )}
-      </div>
-    </div>
-  );
-}
+
         {/* Modal de análise completa */}
         {(analiseAberta || loadingAnalise) && (
           <div style={{ position: 'fixed', inset: 0, zIndex: 300, background: 'rgba(0,0,0,0.85)', display: 'flex', flexDirection: 'column' }}>
@@ -1609,4 +1606,8 @@ function ProfileScreen({ user, onLogout, onUpgrade }) {
           </div>
         )}
 
+      </div>
+    </div>
+  );
+}
 window.HemaScreens2 = { AnalysisScreen, CommunityScreen, ChatScreen, ProfileScreen };
