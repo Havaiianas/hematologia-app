@@ -817,8 +817,9 @@ function HomeScreen({ onNavigate, onStartAnalysis, user }) {
   };
 
   const initials    = user?.name ? user.name.split(' ').filter(Boolean).map(w => w[0]).slice(0, 2).join('') : 'RS';
-  const displayName = user?.name || 'Dr. Rafael Silva';
-  const crbio       = user?.crbio || 'CRBM 12345';
+  const displayName = user?.name || user?.nome || 'Profissional';
+  const crbio       = user?.crbio || '';
+  const fotoLocal   = localStorage.getItem('hema_foto');
 
   return (
     <div style={{ paddingBottom: 140, minHeight: '100%', position: 'relative' }}>
@@ -828,19 +829,23 @@ function HomeScreen({ onNavigate, onStartAnalysis, user }) {
       <div style={{ padding: '54px 20px 16px', display: 'flex', alignItems: 'center', gap: 12, position: 'relative' }}>
         <div style={{
           width: 42, height: 42, borderRadius: '50%',
-          background: `linear-gradient(135deg, ${COLORS.red}, #8B1E15)`,
+          background: fotoLocal ? 'transparent' : `linear-gradient(135deg, ${COLORS.red}, #8B1E15)`,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           fontFamily: FONT_DISPLAY, fontSize: 17, color: COLORS.white,
           boxShadow: `0 0 0 1px ${COLORS.line2}`,
-        }}>{initials}</div>
+          overflow: 'hidden', flexShrink: 0,
+        }}>
+          {fotoLocal
+            ? <img src={fotoLocal} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            : initials
+          }
+        </div>
         <div style={{ flex: 1 }}>
           <div style={{ fontFamily: FONT_SANS, fontSize: 14, color: COLORS.white, fontWeight: 600 }}>{displayName}</div>
           <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: COLORS.muted, letterSpacing: 0.4, marginTop: 2 }}>
             {user?.specialty?.toUpperCase() || 'BIOMÉDICO'} · {crbio}
           </div>
         </div>
-
-        {/* Sino — abre painel de notificações */}
         <div onClick={() => setPainelAberto(true)} style={{ position: 'relative', cursor: 'pointer', padding: 4 }}>
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
             style={{ filter: totalBadge > 0 ? `drop-shadow(0 0 4px ${COLORS.red}80)` : 'none', transition: 'filter 300ms' }}>
