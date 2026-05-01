@@ -837,6 +837,7 @@ function HomeScreen({ onNavigate, onStartAnalysis, user }) {
   const fotoLocal   = localStorage.getItem('hema_foto');
 
   return (
+    <>
     <div style={{ paddingBottom: 140, minHeight: '100%', position: 'relative' }}>
       <LabGrid opacity={0.035} />
 
@@ -1062,7 +1063,6 @@ function HomeScreen({ onNavigate, onStartAnalysis, user }) {
           </div>
         </div>
       </div>
-    </div>
 
       {/* Modal análise completa */}
       {(analiseAberta || loadingAnalise) && (
@@ -1118,6 +1118,8 @@ function HomeScreen({ onNavigate, onStartAnalysis, user }) {
           </div>
         </div>
       )}
+    </div>
+    </>
   );
 }
 
