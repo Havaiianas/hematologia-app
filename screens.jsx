@@ -816,6 +816,21 @@ function HomeScreen({ onNavigate, onStartAnalysis, user }) {
     return { id: a.id, seed: (i * 7 + 3) % 30 + 1, date: data, status, label, count: `${a.total_celulas || 0} células · ${a.blastos_pct || 0}%` };
   };
 
+  const [analiseAberta, setAnaliseAberta] = React.useState(null);
+  const [loadingAnalise, setLoadingAnalise] = React.useState(false);
+
+  const abrirAnalise = async (id) => {
+    setLoadingAnalise(true);
+    const token = localStorage.getItem('hema_token');
+    try {
+      const r = await fetch(`${window.HemaAPI.base}/analysis/${id}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (r.ok) setAnaliseAberta(await r.json());
+    } catch {}
+    setLoadingAnalise(false);
+  };
+
   const initials    = user?.name ? user.name.split(' ').filter(Boolean).map(w => w[0]).slice(0, 2).join('') : 'RS';
   const displayName = user?.name || user?.nome || 'Profissional';
   const crbio       = user?.crbio || '';
@@ -962,8 +977,16 @@ function HomeScreen({ onNavigate, onStartAnalysis, user }) {
             {analises.map((a, i) => {
               const fmt = formatarAnalise(a, i);
               return (
-                <div key={fmt.id} style={{ flexShrink: 0, width: 168, background: COLORS.bg2, border: `0.5px solid ${COLORS.line2}`, borderRadius: 14, overflow: 'hidden' }}>
-                  <MicroSlide seed={fmt.seed} style={{ width: '100%', height: 100 }} />
+                <div key={fmt.id} onClick={() => abrirAnalise(a.id)} style={{ flexShrink: 0, width: 168, background: COLORS.bg2, border: `0.5px solid ${COLORS.line2}`, borderRadius: 14, overflow: 'hidden', cursor: 'pointer' }}>
+                  <div style={{ width: '100%', height: 100, overflow: 'hidden', position: 'relative' }}>
+                    {a.imagem_url
+                      ? <img src={a.imagem_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      : <MicroSlide seed={fmt.seed} style={{ width: '100%', height: '100%' }} />
+                    }
+                    {a.celulas_atipicas && (
+                      <div style={{ position: 'absolute', top: 6, right: 6, background: 'rgba(192,57,43,0.9)', borderRadius: 4, padding: '2px 5px', fontFamily: FONT_MONO, fontSize: 7, color: '#fff' }}>⚠ ATÍPICO</div>
+                    )}
+                  </div>
                   <div style={{ padding: '10px 12px' }}>
                     <StatusBadge status={fmt.status} label={fmt.label} />
                     <div style={{ fontFamily: FONT_SANS, fontSize: 11, color: COLORS.white, marginTop: 8, fontWeight: 500 }}>{fmt.count}</div>
@@ -1040,6 +1063,61 @@ function HomeScreen({ onNavigate, onStartAnalysis, user }) {
         </div>
       </div>
     </div>
+
+      {/* Modal análise completa */}
+      {(analiseAberta || loadingAnalise) && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 300, background: 'rgba(0,0,0,0.85)', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ background: '#0A1628', flex: 1, overflowY: 'auto', paddingBottom: 40 }}>
+            <div style={{ padding: '54px 18px 12px', display: 'flex', alignItems: 'center', gap: 10, borderBottom: `0.5px solid ${COLORS.line2}`, position: 'sticky', top: 0, background: '#0A1628', zIndex: 10 }}>
+              <button onClick={() => setAnaliseAberta(null)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M19 12H5M12 5l-7 7 7 7" stroke={COLORS.white} strokeWidth="1.8" strokeLinecap="round"/></svg>
+              </button>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontFamily: FONT_MONO, fontSize: 9, color: COLORS.dim, letterSpacing: 1 }}>· Análise completa</div>
+                <div style={{ fontFamily: FONT_DISPLAY, fontSize: 18, color: COLORS.white, fontWeight: 600 }}>Laudo Hematológico</div>
+              </div>
+            </div>
+            {loadingAnalise && (
+              <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}>
+                <div style={{ width: 32, height: 32, borderRadius: '50%', border: `2px solid ${COLORS.line2}`, borderTopColor: COLORS.red, animation: 'spin 0.8s linear infinite' }} />
+              </div>
+            )}
+            {analiseAberta && !loadingAnalise && (
+              <div style={{ padding: '0 18px' }}>
+                {analiseAberta.imagem_url && (
+                  <div style={{ marginTop: 16, borderRadius: 14, overflow: 'hidden', height: 220 }}>
+                    <img src={analiseAberta.imagem_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  </div>
+                )}
+                <div style={{ marginTop: 14, padding: 14, borderRadius: 12, background: analiseAberta.celulas_atipicas_detectadas ? 'rgba(192,57,43,0.12)' : 'rgba(76,175,124,0.1)', border: `1px solid ${analiseAberta.celulas_atipicas_detectadas ? COLORS.redBorder : 'rgba(76,175,124,0.3)'}` }}>
+                  <div style={{ fontFamily: FONT_MONO, fontSize: 9, color: analiseAberta.celulas_atipicas_detectadas ? COLORS.red : COLORS.green, letterSpacing: 1.4, textTransform: 'uppercase', marginBottom: 6 }}>
+                    {analiseAberta.celulas_atipicas_detectadas ? '⚠ Atenção clínica' : '✓ Dentro do esperado'}
+                  </div>
+                  <div style={{ fontFamily: FONT_DISPLAY, fontSize: 15, color: COLORS.white, lineHeight: 1.3 }}>{analiseAberta.suspeita_diagnostica}</div>
+                  {analiseAberta.recomendacao && <div style={{ fontFamily: FONT_SANS, fontSize: 11, color: COLORS.muted, marginTop: 8, lineHeight: 1.4 }}>{analiseAberta.recomendacao}</div>}
+                </div>
+                <div style={{ marginTop: 12, display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+                  {[{ n: analiseAberta.total_celulas_analisadas, l: 'Células' }, { n: `${analiseAberta.confianca_percent}%`, l: 'Confiança' }, { n: `${analiseAberta.blastos_pct}%`, l: 'Blastos' }].map((s, i) => (
+                    <div key={i} style={{ background: COLORS.bg2, border: `0.5px solid ${COLORS.line2}`, borderRadius: 10, padding: '10px', textAlign: 'center' }}>
+                      <div style={{ fontFamily: FONT_DISPLAY, fontSize: 18, color: COLORS.white, fontWeight: 700 }}>{s.n}</div>
+                      <div style={{ fontFamily: FONT_MONO, fontSize: 8, color: COLORS.dim, letterSpacing: 0.8, textTransform: 'uppercase', marginTop: 2 }}>{s.l}</div>
+                    </div>
+                  ))}
+                </div>
+                {analiseAberta.laudo_resumido && (
+                  <div style={{ marginTop: 12, background: COLORS.bg2, border: `0.5px solid ${COLORS.line2}`, borderRadius: 14, padding: 14 }}>
+                    <div style={{ fontFamily: FONT_MONO, fontSize: 9, color: COLORS.dim, letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 8 }}>Laudo completo</div>
+                    <div style={{ fontFamily: FONT_SANS, fontSize: 12, color: COLORS.muted, lineHeight: 1.6 }}>{analiseAberta.laudo_resumido}</div>
+                  </div>
+                )}
+                <div style={{ fontFamily: FONT_MONO, fontSize: 9, color: COLORS.dim, textAlign: 'center', marginTop: 10 }}>
+                  {analiseAberta.criado_em ? new Date(analiseAberta.criado_em).toLocaleString('pt-BR') : ''}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
   );
 }
 
