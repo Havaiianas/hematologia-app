@@ -11,7 +11,7 @@ function CellThumbnail({ type, index = 0, style = {} }) {
   const svgStyle = { width: '100%', height: '100%', display: 'block', ...style };
 
   if (resolved === 'neutrofilo') return (
-    <svg viewBox="0 0 200 110" xmlns="http://www.w3.org/2000/svg" style={svgStyle}>
+    <svg viewBox="0 0 200 110" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice" style={svgStyle}>
       <defs>
         <radialGradient id={`nt_bg_${index}`} cx="50%" cy="50%"><stop offset="0%" stopColor="#0d1f3c"/><stop offset="100%" stopColor="#060c18"/></radialGradient>
         <radialGradient id={`nt_body_${index}`} cx="45%" cy="40%"><stop offset="0%" stopColor="#c8ddf5" stopOpacity="0.9"/><stop offset="100%" stopColor="#7aadde" stopOpacity="0.6"/></radialGradient>
@@ -44,7 +44,7 @@ function CellThumbnail({ type, index = 0, style = {} }) {
   );
 
   if (resolved === 'linfocito') return (
-    <svg viewBox="0 0 200 110" xmlns="http://www.w3.org/2000/svg" style={svgStyle}>
+    <svg viewBox="0 0 200 110" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice" style={svgStyle}>
       <defs>
         <radialGradient id={`lf_bg_${index}`} cx="50%" cy="50%"><stop offset="0%" stopColor="#0d1f3c"/><stop offset="100%" stopColor="#060c18"/></radialGradient>
         <radialGradient id={`lf_body_${index}`} cx="40%" cy="35%"><stop offset="0%" stopColor="#b5cde8" stopOpacity="0.85"/><stop offset="100%" stopColor="#5a8fc4" stopOpacity="0.5"/></radialGradient>
@@ -70,7 +70,7 @@ function CellThumbnail({ type, index = 0, style = {} }) {
   );
 
   if (resolved === 'blasto') return (
-    <svg viewBox="0 0 200 110" xmlns="http://www.w3.org/2000/svg" style={svgStyle}>
+    <svg viewBox="0 0 200 110" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice" style={svgStyle}>
       <defs>
         <radialGradient id={`bl_bg_${index}`} cx="50%" cy="50%"><stop offset="0%" stopColor="#1a0d2e"/><stop offset="100%" stopColor="#060c18"/></radialGradient>
         <radialGradient id={`bl_body_${index}`} cx="38%" cy="32%"><stop offset="0%" stopColor="#d4c0f5" stopOpacity="0.8"/><stop offset="100%" stopColor="#8060cc" stopOpacity="0.45"/></radialGradient>
@@ -99,7 +99,7 @@ function CellThumbnail({ type, index = 0, style = {} }) {
   );
 
   if (resolved === 'monocito') return (
-    <svg viewBox="0 0 200 110" xmlns="http://www.w3.org/2000/svg" style={svgStyle}>
+    <svg viewBox="0 0 200 110" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice" style={svgStyle}>
       <defs>
         <radialGradient id={`mn_bg_${index}`} cx="50%" cy="50%"><stop offset="0%" stopColor="#1a1208"/><stop offset="100%" stopColor="#060c18"/></radialGradient>
         <radialGradient id={`mn_body_${index}`} cx="40%" cy="35%"><stop offset="0%" stopColor="#d8c8a0" stopOpacity="0.75"/><stop offset="100%" stopColor="#a08840" stopOpacity="0.45"/></radialGradient>
@@ -123,7 +123,7 @@ function CellThumbnail({ type, index = 0, style = {} }) {
   );
 
   return (
-    <svg viewBox="0 0 200 110" xmlns="http://www.w3.org/2000/svg" style={svgStyle}>
+    <svg viewBox="0 0 200 110" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice" style={svgStyle}>
       <defs>
         <radialGradient id={`er_bg_${index}`} cx="50%" cy="50%"><stop offset="0%" stopColor="#1a0808"/><stop offset="100%" stopColor="#060c18"/></radialGradient>
         <radialGradient id={`er_cell_${index}`} cx="40%" cy="35%"><stop offset="0%" stopColor="#e87878" stopOpacity="0.85"/><stop offset="100%" stopColor="#8c2020" stopOpacity="0.6"/></radialGradient>
