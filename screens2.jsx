@@ -1536,12 +1536,37 @@ function ProfileScreen({ user, onLogout, onUpgrade }) {
 
               {analiseAberta && !loadingAnalise && (
                 <div style={{ padding: '0 18px' }}>
-                  {/* Imagem */}
-                  {analiseAberta.imagem_url && (
-                    <div style={{ marginTop: 16, borderRadius: 14, overflow: 'hidden', height: 220 }}>
-                      <img src={analiseAberta.imagem_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    </div>
-                  )}
+                  {/* Imagem com botão expandir */}
+                  {analiseAberta.imagem_url && (() => {
+                    const [fotoExpandida, setFotoExpandida] = React.useState(false);
+                    return (
+                      <>
+                        <div style={{ marginTop: 16, borderRadius: 14, overflow: 'hidden', height: 220, position: 'relative', cursor: 'pointer' }}
+                          onClick={() => setFotoExpandida(true)}>
+                          <img src={analiseAberta.imagem_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          <div style={{ position: 'absolute', bottom: 8, right: 8, background: 'rgba(0,0,0,0.6)', borderRadius: 6, padding: '4px 8px', display: 'flex', alignItems: 'center', gap: 4 }}>
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" stroke="white" strokeWidth="1.8" strokeLinecap="round"/></svg>
+                            <span style={{ fontFamily: FONT_MONO, fontSize: 8, color: 'white', letterSpacing: 0.6 }}>EXPANDIR</span>
+                          </div>
+                        </div>
+                        {fotoExpandida && (
+                          <div onClick={() => setFotoExpandida(false)} style={{
+                            position: 'fixed', inset: 0, zIndex: 500,
+                            background: 'rgba(0,0,0,0.95)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          }}>
+                            <img src={analiseAberta.imagem_url} style={{
+                              maxWidth: '100%', maxHeight: '100%',
+                              objectFit: 'contain',
+                            }} />
+                            <div style={{ position: 'absolute', top: 50, right: 20, background: 'rgba(255,255,255,0.1)', borderRadius: 8, padding: '8px 14px', cursor: 'pointer' }}>
+                              <span style={{ fontFamily: FONT_MONO, fontSize: 10, color: 'white' }}>✕ Fechar</span>
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
 
                   {/* Status principal */}
                   <div style={{ marginTop: 14, padding: 14, borderRadius: 12, background: analiseAberta.celulas_atipicas_detectadas ? 'rgba(192,57,43,0.12)' : 'rgba(76,175,124,0.1)', border: `1px solid ${analiseAberta.celulas_atipicas_detectadas ? COLORS.redBorder : 'rgba(76,175,124,0.3)'}` }}>
