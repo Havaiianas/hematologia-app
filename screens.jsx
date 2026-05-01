@@ -2,6 +2,158 @@
 const { COLORS, FONT_DISPLAY, FONT_MONO, FONT_SANS, MicroSlide, Logo, CellIcon, LabGrid, Coords } = window.Hema;
 
 // ══════════════════════════════════════════════════
+// CELL THUMBNAIL — Ilustrações SVG de células
+// ══════════════════════════════════════════════════
+const CELL_TYPES = ['neutrofilo', 'linfocito', 'blasto', 'monocito', 'eritrocito'];
+
+function CellThumbnail({ type, index = 0, style = {} }) {
+  const resolved = type || CELL_TYPES[index % CELL_TYPES.length];
+  const svgStyle = { width: '100%', height: '100%', display: 'block', ...style };
+
+  if (resolved === 'neutrofilo') return (
+    <svg viewBox="0 0 200 110" xmlns="http://www.w3.org/2000/svg" style={svgStyle}>
+      <defs>
+        <radialGradient id={`nt_bg_${index}`} cx="50%" cy="50%"><stop offset="0%" stopColor="#0d1f3c"/><stop offset="100%" stopColor="#060c18"/></radialGradient>
+        <radialGradient id={`nt_body_${index}`} cx="45%" cy="40%"><stop offset="0%" stopColor="#c8ddf5" stopOpacity="0.9"/><stop offset="100%" stopColor="#7aadde" stopOpacity="0.6"/></radialGradient>
+        <radialGradient id={`nt_nuc_${index}`} cx="40%" cy="35%"><stop offset="0%" stopColor="#9b72d4"/><stop offset="100%" stopColor="#5a3a9e"/></radialGradient>
+      </defs>
+      <rect width="200" height="110" fill={`url(#nt_bg_${index})`}/>
+      <line x1="0" y1="55" x2="200" y2="55" stroke="#1a2a45" strokeWidth="0.5"/>
+      <line x1="100" y1="0" x2="100" y2="110" stroke="#1a2a45" strokeWidth="0.5"/>
+      <ellipse cx="30" cy="25" rx="16" ry="13" fill="#8c3a3a" fillOpacity="0.35"/>
+      <ellipse cx="30" cy="25" rx="8" ry="6" fill="#050c18" fillOpacity="0.5"/>
+      <ellipse cx="170" cy="88" rx="15" ry="12" fill="#8c3a3a" fillOpacity="0.3"/>
+      <ellipse cx="170" cy="88" rx="7" ry="5" fill="#050c18" fillOpacity="0.5"/>
+      <ellipse cx="15" cy="90" rx="12" ry="10" fill="#8c3a3a" fillOpacity="0.25"/>
+      <ellipse cx="100" cy="55" rx="38" ry="34" fill={`url(#nt_body_${index})`}/>
+      <circle cx="88" cy="48" r="2.5" fill="#a8c9ea" fillOpacity="0.5"/>
+      <circle cx="95" cy="60" r="2" fill="#a8c9ea" fillOpacity="0.4"/>
+      <circle cx="112" cy="52" r="2.5" fill="#a8c9ea" fillOpacity="0.5"/>
+      <circle cx="106" cy="65" r="2" fill="#a8c9ea" fillOpacity="0.4"/>
+      <circle cx="83" cy="62" r="2" fill="#a8c9ea" fillOpacity="0.35"/>
+      <ellipse cx="88" cy="50" rx="13" ry="10" fill={`url(#nt_nuc_${index})`} fillOpacity="0.9"/>
+      <ellipse cx="103" cy="47" rx="12" ry="10" fill={`url(#nt_nuc_${index})`} fillOpacity="0.9"/>
+      <ellipse cx="114" cy="56" rx="11" ry="9" fill={`url(#nt_nuc_${index})`} fillOpacity="0.9"/>
+      <ellipse cx="106" cy="66" rx="10" ry="8" fill={`url(#nt_nuc_${index})`} fillOpacity="0.8"/>
+      <ellipse cx="96" cy="48" rx="5" ry="4" fill="#7258c0" fillOpacity="0.8"/>
+      <ellipse cx="109" cy="51" rx="4" ry="4" fill="#7258c0" fillOpacity="0.8"/>
+      <ellipse cx="111" cy="61" rx="4" ry="3.5" fill="#7258c0" fillOpacity="0.7"/>
+      <ellipse cx="91" cy="43" rx="5" ry="3" fill="#c5b0ef" fillOpacity="0.35"/>
+      <ellipse cx="100" cy="55" rx="38" ry="34" fill="none" stroke="#5a8fc4" strokeWidth="0.8" strokeOpacity="0.4"/>
+    </svg>
+  );
+
+  if (resolved === 'linfocito') return (
+    <svg viewBox="0 0 200 110" xmlns="http://www.w3.org/2000/svg" style={svgStyle}>
+      <defs>
+        <radialGradient id={`lf_bg_${index}`} cx="50%" cy="50%"><stop offset="0%" stopColor="#0d1f3c"/><stop offset="100%" stopColor="#060c18"/></radialGradient>
+        <radialGradient id={`lf_body_${index}`} cx="40%" cy="35%"><stop offset="0%" stopColor="#b5cde8" stopOpacity="0.85"/><stop offset="100%" stopColor="#5a8fc4" stopOpacity="0.5"/></radialGradient>
+        <radialGradient id={`lf_nuc_${index}`} cx="38%" cy="32%"><stop offset="0%" stopColor="#7b5cc4"/><stop offset="100%" stopColor="#3d2580"/></radialGradient>
+      </defs>
+      <rect width="200" height="110" fill={`url(#lf_bg_${index})`}/>
+      <line x1="0" y1="55" x2="200" y2="55" stroke="#1a2a45" strokeWidth="0.5"/>
+      <line x1="100" y1="0" x2="100" y2="110" stroke="#1a2a45" strokeWidth="0.5"/>
+      <ellipse cx="28" cy="88" rx="16" ry="12" fill="#8c3a3a" fillOpacity="0.3"/>
+      <ellipse cx="28" cy="88" rx="7" ry="5" fill="#050c18" fillOpacity="0.5"/>
+      <ellipse cx="172" cy="22" rx="14" ry="11" fill="#8c3a3a" fillOpacity="0.25"/>
+      <ellipse cx="172" cy="22" rx="6" ry="5" fill="#050c18" fillOpacity="0.4"/>
+      <ellipse cx="100" cy="55" rx="36" ry="33" fill={`url(#lf_body_${index})`}/>
+      <ellipse cx="100" cy="54" rx="28" ry="26" fill={`url(#lf_nuc_${index})`}/>
+      <ellipse cx="93" cy="47" rx="8" ry="7" fill="#5a44a8" fillOpacity="0.5"/>
+      <ellipse cx="108" cy="58" rx="7" ry="6" fill="#4a3498" fillOpacity="0.4"/>
+      <ellipse cx="98" cy="62" rx="6" ry="5" fill="#4a3498" fillOpacity="0.35"/>
+      <circle cx="103" cy="50" r="5" fill="#c4aaee" fillOpacity="0.55"/>
+      <circle cx="103" cy="50" r="2.5" fill="#ddd0f8" fillOpacity="0.6"/>
+      <ellipse cx="88" cy="44" rx="7" ry="4" fill="#c5d8f2" fillOpacity="0.25"/>
+      <ellipse cx="100" cy="55" rx="36" ry="33" fill="none" stroke="#4a7ab8" strokeWidth="0.8" strokeOpacity="0.4"/>
+    </svg>
+  );
+
+  if (resolved === 'blasto') return (
+    <svg viewBox="0 0 200 110" xmlns="http://www.w3.org/2000/svg" style={svgStyle}>
+      <defs>
+        <radialGradient id={`bl_bg_${index}`} cx="50%" cy="50%"><stop offset="0%" stopColor="#1a0d2e"/><stop offset="100%" stopColor="#060c18"/></radialGradient>
+        <radialGradient id={`bl_body_${index}`} cx="38%" cy="32%"><stop offset="0%" stopColor="#d4c0f5" stopOpacity="0.8"/><stop offset="100%" stopColor="#8060cc" stopOpacity="0.45"/></radialGradient>
+        <radialGradient id={`bl_nuc_${index}`} cx="35%" cy="30%"><stop offset="0%" stopColor="#a070e8"/><stop offset="100%" stopColor="#4a1890"/></radialGradient>
+      </defs>
+      <rect width="200" height="110" fill={`url(#bl_bg_${index})`}/>
+      <line x1="0" y1="55" x2="200" y2="55" stroke="#1a1530" strokeWidth="0.5"/>
+      <line x1="100" y1="0" x2="100" y2="110" stroke="#1a1530" strokeWidth="0.5"/>
+      <ellipse cx="165" cy="85" rx="15" ry="12" fill="#8c3a3a" fillOpacity="0.3"/>
+      <ellipse cx="165" cy="85" rx="7" ry="5" fill="#050c18" fillOpacity="0.5"/>
+      <ellipse cx="22" cy="30" rx="14" ry="11" fill="#8c3a3a" fillOpacity="0.25"/>
+      <ellipse cx="100" cy="55" rx="42" ry="38" fill={`url(#bl_body_${index})`}/>
+      <ellipse cx="100" cy="54" rx="35" ry="31" fill={`url(#bl_nuc_${index})`} fillOpacity="0.88"/>
+      <path d="M75 46 Q85 38 100 40 Q118 39 125 50 Q133 62 128 72 Q118 82 100 82 Q80 82 72 70 Q65 58 75 46" fill="none" stroke="#b090e8" strokeWidth="0.8" strokeOpacity="0.4"/>
+      <circle cx="93" cy="48" r="6" fill="#e0d0ff" fillOpacity="0.5"/>
+      <circle cx="93" cy="48" r="3" fill="#f0e8ff" fillOpacity="0.7"/>
+      <circle cx="110" cy="58" r="5" fill="#e0d0ff" fillOpacity="0.45"/>
+      <circle cx="110" cy="58" r="2.5" fill="#f0e8ff" fillOpacity="0.65"/>
+      <circle cx="98" cy="65" r="4" fill="#e0d0ff" fillOpacity="0.4"/>
+      <ellipse cx="85" cy="55" rx="6" ry="5" fill="#6040b0" fillOpacity="0.4"/>
+      <ellipse cx="113" cy="48" rx="5" ry="4" fill="#6040b0" fillOpacity="0.35"/>
+      <ellipse cx="88" cy="44" rx="8" ry="4" fill="#d0b8f8" fillOpacity="0.2"/>
+      <ellipse cx="100" cy="55" rx="42" ry="38" fill="none" stroke="#9060dd" strokeWidth="1" strokeOpacity="0.35"/>
+      <ellipse cx="100" cy="55" rx="44" ry="40" fill="none" stroke="#8040cc" strokeWidth="2" strokeOpacity="0.1"/>
+    </svg>
+  );
+
+  if (resolved === 'monocito') return (
+    <svg viewBox="0 0 200 110" xmlns="http://www.w3.org/2000/svg" style={svgStyle}>
+      <defs>
+        <radialGradient id={`mn_bg_${index}`} cx="50%" cy="50%"><stop offset="0%" stopColor="#1a1208"/><stop offset="100%" stopColor="#060c18"/></radialGradient>
+        <radialGradient id={`mn_body_${index}`} cx="40%" cy="35%"><stop offset="0%" stopColor="#d8c8a0" stopOpacity="0.75"/><stop offset="100%" stopColor="#a08840" stopOpacity="0.45"/></radialGradient>
+        <radialGradient id={`mn_nuc_${index}`} cx="38%" cy="35%"><stop offset="0%" stopColor="#c09040"/><stop offset="100%" stopColor="#703808"/></radialGradient>
+      </defs>
+      <rect width="200" height="110" fill={`url(#mn_bg_${index})`}/>
+      <line x1="0" y1="55" x2="200" y2="55" stroke="#1a1808" strokeWidth="0.5"/>
+      <line x1="100" y1="0" x2="100" y2="110" stroke="#1a1808" strokeWidth="0.5"/>
+      <ellipse cx="25" cy="82" rx="15" ry="12" fill="#8c3a3a" fillOpacity="0.3"/>
+      <ellipse cx="25" cy="82" rx="7" ry="5" fill="#050c18" fillOpacity="0.5"/>
+      <ellipse cx="175" cy="28" rx="13" ry="11" fill="#8c3a3a" fillOpacity="0.25"/>
+      <ellipse cx="100" cy="57" rx="44" ry="38" fill={`url(#mn_body_${index})`}/>
+      <circle cx="80" cy="65" r="4" fill="#050c18" fillOpacity="0.3"/>
+      <circle cx="118" cy="68" r="3" fill="#050c18" fillOpacity="0.25"/>
+      <circle cx="88" cy="72" r="3" fill="#050c18" fillOpacity="0.2"/>
+      <path d="M76 48 Q80 38 100 38 Q120 38 124 48 Q130 58 124 66 Q118 72 110 68 Q100 64 90 68 Q82 72 76 66 Q70 58 76 48Z" fill={`url(#mn_nuc_${index})`} fillOpacity="0.9"/>
+      <path d="M90 53 Q100 58 110 53" fill="none" stroke="#e0b060" strokeWidth="1.5" strokeOpacity="0.4"/>
+      <ellipse cx="85" cy="46" rx="6" ry="3.5" fill="#e0b860" fillOpacity="0.3"/>
+      <ellipse cx="100" cy="57" rx="44" ry="38" fill="none" stroke="#a08040" strokeWidth="0.8" strokeOpacity="0.35"/>
+    </svg>
+  );
+
+  // eritrocito (padrão)
+  return (
+    <svg viewBox="0 0 200 110" xmlns="http://www.w3.org/2000/svg" style={svgStyle}>
+      <defs>
+        <radialGradient id={`er_bg_${index}`} cx="50%" cy="50%"><stop offset="0%" stopColor="#1a0808"/><stop offset="100%" stopColor="#060c18"/></radialGradient>
+        <radialGradient id={`er_cell_${index}`} cx="40%" cy="35%"><stop offset="0%" stopColor="#e87878" stopOpacity="0.85"/><stop offset="100%" stopColor="#8c2020" stopOpacity="0.6"/></radialGradient>
+      </defs>
+      <rect width="200" height="110" fill={`url(#er_bg_${index})`}/>
+      <line x1="0" y1="55" x2="200" y2="55" stroke="#2a1010" strokeWidth="0.5"/>
+      <line x1="100" y1="0" x2="100" y2="110" stroke="#2a1010" strokeWidth="0.5"/>
+      {[[40,30,20,16],[90,22,19,15],[148,35,21,17],[22,62,18,14],[70,58,22,17],[118,55,20,16],[166,60,19,15],[45,88,20,16],[100,84,21,17],[158,85,18,14]].map(([cx,cy,rx,ry],k) => (
+        <g key={k}>
+          <ellipse cx={cx} cy={cy} rx={rx} ry={ry} fill={`url(#er_cell_${index})`} fillOpacity={0.6+(k%3)*0.1}/>
+          <ellipse cx={cx} cy={cy} rx={rx*0.45} ry={ry*0.45} fill="#060c18" fillOpacity="0.55"/>
+          <ellipse cx={cx-rx*0.3} cy={cy-ry*0.3} rx={rx*0.3} ry={ry*0.2} fill="#f0a0a0" fillOpacity="0.2"/>
+        </g>
+      ))}
+    </svg>
+  );
+}
+
+// Helper: detecta tipo de célula pelo resultado da análise
+function detectarTipoCelula(analise) {
+  const txt = ((analise.suspeita_diagnostica || '') + (analise.laudo_resumido || '')).toLowerCase();
+  if (txt.includes('blasto') || txt.includes('leucemia') || txt.includes('lma') || txt.includes('lla')) return 'blasto';
+  if (txt.includes('linfocit')) return 'linfocito';
+  if (txt.includes('neutrofil') || txt.includes('segmentad')) return 'neutrofilo';
+  if (txt.includes('monocit')) return 'monocito';
+  return null; // rotaciona por index
+}
+
+// ══════════════════════════════════════════════════
 // SCREEN 1 — LOGIN (conectado ao backend)
 // ══════════════════════════════════════════════════
 // ──────────────────────────────────────────────────
@@ -981,10 +1133,7 @@ function HomeScreen({ onNavigate, onStartAnalysis, user }) {
               return (
                 <div key={fmt.id} onClick={() => abrirAnalise(a.id)} style={{ flexShrink: 0, width: 168, background: COLORS.bg2, border: `0.5px solid ${COLORS.line2}`, borderRadius: 14, overflow: 'hidden', cursor: 'pointer' }}>
                   <div style={{ width: '100%', height: 100, overflow: 'hidden', position: 'relative' }}>
-                    {a.imagem_url
-                      ? <img src={a.imagem_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                      : <MicroSlide seed={fmt.seed} style={{ width: '100%', height: '100%' }} />
-                    }
+                    <CellThumbnail type={detectarTipoCelula(a)} index={i} />
                     {a.celulas_atipicas && (
                       <div style={{ position: 'absolute', top: 6, right: 6, background: 'rgba(192,57,43,0.9)', borderRadius: 4, padding: '2px 5px', fontFamily: FONT_MONO, fontSize: 7, color: '#fff' }}>⚠ ATÍPICO</div>
                     )}
